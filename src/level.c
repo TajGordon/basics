@@ -110,13 +110,14 @@ void EditLevel()
 {
     if (IsKeyPressed(KEY_U)) {WriteLevelChanges(); printf("\033[31;1;4mWriting file changes\n\033[0m");}
     if (IsKeyPressed(KEY_T)) {_EditingLevel = _EditingLevel ^ 1;}
-    if (_EditingLevel && !IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) return;
+    if (!_EditingLevel || !IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) return;
 
     Vector2 mpos = GetMousePosition();
 
     int mx = mpos.x / (GetScreenWidth()/TILEMAP_WIDTH);
     int my = mpos.y / (GetScreenHeight()/TILEMAP_HEIGHT);
-    _TileMap[mx][my] = 1;
+    if (_TileMap[mx][my] == 1) _TileMap[mx][my] = 0;
+    else _TileMap[mx][my] = 1;
 }
 
 void WriteLevelChanges()

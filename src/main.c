@@ -13,12 +13,14 @@ int main(void)
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Learning Raylib");
 
     LoadLevel("map_1");
+    LoadMovingPlatforms("do_1");
 
     while (!WindowShouldClose())
     {
         {
             EditLevel();
-
+            EditMovingPlatforms();
+            MoveMovingPlatforms();
             HandleEnemySpawningFromMouse();
             EnemiesPhysicsUpdate();
             GetPlayerInput();
