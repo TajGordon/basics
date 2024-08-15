@@ -194,7 +194,7 @@ void EditMovingPlatforms()
         {
             char text[512];
             sprintf(text, "Current Speed: %d", editingPlatform->speed);
-            DrawText(text, mpos.x, mpos.y, 20, ORANGE);
+            DrawText(text, mpos.x, mpos.y + 30, 20, ORANGE);
 
             static char input[512] = "\0"; // Buffer for user input
             static int letterCount = 0;
@@ -221,8 +221,8 @@ void EditMovingPlatforms()
             }
 
             // Draw the user input and instruction below the current speed
-            DrawText("Enter a new speed and press ENTER:", mpos.x, mpos.y + 30, 20, LIGHTGRAY);
-            DrawText(input, mpos.x, mpos.y + 60, 20, LIGHTGRAY);
+            DrawText("Enter a new speed and press ENTER:", mpos.x, mpos.y + 60, 20, LIGHTGRAY);
+            DrawText(input, mpos.x, mpos.y + 90, 20, LIGHTGRAY);
         }
     }
 }
