@@ -35,7 +35,6 @@ void DrawMovingPlatforms()
             DrawRectangle(minB.x, minB.y, p->size.x, p->size.y, GREEN);
             DrawLine(p->posA.x, p->posA.y, p->posB.x, p->posB.y, MAGENTA);
         }
-        else DrawText("Static object", p->posA.x, p->posA.y, 20, ORANGE);
         Vector2 minC = {p->cpos.x - p->size.x / 2, p->cpos.y - p->size.y / 2};
         Vector2 maxC = {p->cpos.x + p->size.x / 2, p->cpos.y + p->size.y / 2};
 
