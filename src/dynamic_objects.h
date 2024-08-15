@@ -3,11 +3,19 @@
 
 typedef struct MovingPlatform
 {
-    Vector2 min;
-    Vector2 max;
+    Vector2 minA;
+    Vector2 maxA;
     Vector2 posA;
+    Vector2 minB;
+    Vector2 maxB;
     Vector2 posB;
+    Vector2 size;
     float speed;
+    // stored:
+    // posA
+    // posB
+    // speed
+    // size
 } MovingPlatform;
 
 void DrawMovingPlatforms();
