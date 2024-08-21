@@ -55,12 +55,15 @@ typedef long double Time;
 #define TARGET_FPS 60
 #define PHYSICS_PROCESS_FPS 60
 
+#define TSIZE 32
+
 #define COYOTE_MS 100
 #define JUMP_BUFFER_MS 200
 
 #define GRAVITY_FALL_MULTIPLIER 2.0
 
 #define XMOVSPD 500
+
 
 /**************************************
 *             Controls                *
@@ -86,7 +89,6 @@ struct Player
     // Feeling f=ma,
     // might delete late X/
     Vector2 vel;
-    Vector2 accel;
     // For celeste style
     Vector2 rem;
     // Jumping
@@ -354,14 +356,13 @@ int main(void)
     Player player = {0};
     { // Init player
         player.pos = (Vector2){(float)windowWidth/2, 0};
-        player.size = (Vector2){24, 32};
-        player.accel = (Vector2){500, 32};
+        player.size = (Vector2){0.75, 1} * TSIZE;
     }
 
-    CalculatePlayerGravity(&player, 0.5, 160. + player.size.y/2);
+    CalculatePlayerGravity(&player, 0.5, 4*TSIZE + player.size.y/2);
 
     Camera2D camera = {0};
-    camera.target = player.pos;
+    camera.target = (Vector2){windowWidth/2.f, windowHeight/2.f};
     camera.offset = (Vector2){ windowWidth/2.0f, windowHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
@@ -373,18 +374,18 @@ int main(void)
     Box floor = {0};
     {
         floor.rec = {(Vector2){(float)windowWidth/2, (float)windowHeight}, (Vector2){(float)windowWidth, 320}};
-        floor.color = RED;
+        floor.color = (Color){11, 11, 11, 255};
         boxes[boxCount++] = floor;
     }
     {
-        boxes[1].rec = {(Vector2){416, 480}, (Vector2){32, 32}};
+        boxes[1].rec = {(Vector2){10*TSIZE, 10*TSIZE}, (Vector2){1, 1}*TSIZE};
         boxes[1].color = RED;
         boxCount++;
-        boxes[2].rec = {(Vector2){480, 416}, (Vector2){32, 32}};
-        boxes[2].color = RED;
+        boxes[2].rec = {(Vector2){20*TSIZE, 12*TSIZE}, (Vector2){1, 1}*TSIZE};
+        boxes[2].color = GREEN;
         boxCount++;
-        boxes[3].rec = {(Vector2){640, 352}, (Vector2){32, 32}};
-        boxes[3].color = RED;
+        boxes[3].rec = {(Vector2){30*TSIZE, 15*TSIZE}, (Vector2){1, 1}*TSIZE};
+        boxes[3].color = BLUE;
         boxCount++;
     }
     AABB* collideables = (AABB*)malloc(sizeof(AABB) * boxCount);
@@ -420,18 +421,17 @@ int main(void)
                 tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
                 tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
         }
-        if (IsKeyReleased(JUMP) && player.vel.y > player.jumpVel * 0.9)
+        if (IsKeyReleased(JUMP) && player.vel.y < 0)
         {
             player.vel.y *= 0.5;
         }
-
         if (physicsDtAccumulator > targetPhysicsMS)
         {
             physicsDtAccumulator -= targetPhysicsMS;
             // convert ms to seconds for deltaTime calculations
             PhysicsProcess(&player, targetPhysicsMS / 1000, currentFrameTime, collideables, collideableCount);
 
-            UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
+            // UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
             BeginDrawing();
             {
                 ClearBackground(backgroundColor);
@@ -443,7 +443,7 @@ int main(void)
                 EndMode2D();
 
                 DrawDebugInfo(&player);
-                DrawFPS(20, windowHeight - 100);
+                DrawText(TextFormat("physics simulation FPS = %.1f", 1000/targetPhysicsMS), 20, windowHeight - 50, 20, YELLOW);
             }
             EndDrawing();
         }
