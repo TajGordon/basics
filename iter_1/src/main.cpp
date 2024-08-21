@@ -279,7 +279,7 @@ void CheckPlayerOnGround(Player* p, AABB* collideables, int collideableCount, Ti
     }
 }
 
-void PlayerPhysicsProcess(Player* p, float dt, AABB* collideables, int collideableCount)
+void PhysicsProcess(Player* p, float dt, AABB* collideables, int collideableCount)
 {
     Time time = GetTimeMS();
     CheckPlayerOnGround(p, collideables, collideableCount, time);
@@ -370,22 +370,23 @@ int main(void)
 
     Time lastFrameTime = 0;
 
-    float frameDtAccumulator = 0;
+    float targetPhysicsMS = 1.f / PHYSICS_PROCESS_FPS;
+
+    float frameDtAccumulator = GetTimeMS();
+    float physicsDtAccumulator = frameDtAccumulator;
 
     while (!WindowShouldClose())
     {
         Time currentFrameTime = GetTimeMS();
         float frameDT = currentFrameTime - lastFrameTime;
 
-        frameDtAccumulator += frameDT;
-
-
-
-
-
+        if (physicsDtAccumulator > targetPhysicsMS)
+        {
+            physicsDtAccumulator -= targetPhysicsMS;
+            PhysicsProcess(&player, targetPhysicsMS, collideables, collideableCount);
+        }
 
         { // Update
-            PlayerPhysicsProcess(&player, frameDT, collideables, collideableCount);
             UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
         }
         BeginDrawing();
