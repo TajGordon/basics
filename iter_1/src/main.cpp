@@ -44,6 +44,8 @@ Vector2 operator/(Vector2 v, float f)
 {
     return (Vector2){v.x / f, v.y / f};
 }
+
+
 /**************************************
 *                                     *
 **************************************/
@@ -53,13 +55,20 @@ typedef long double Time;
 #define TARGET_FPS 60
 #define PHYSICS_PROCESS_FPS 60
 
-#define GRAVITY 981
+#define COYOTE_MS 100
+#define JUMP_BUFFER_MS 200
 
-#define COYOTE_MS 10
-#define JUMP_BUFFER_MS 20
-#define JUMP_VELOCITY -500
+#define GRAVITY_FALL_MULTIPLIER 1.5
 
-#define XMOVSPD 400
+#define XMOVSPD 500
+
+/**************************************
+*             Controls                *
+**************************************/
+#define JUMP KEY_SPACE
+#define LEFT KEY_A
+#define RIGHT KEY_D
+
 
 
 // debug
@@ -77,9 +86,12 @@ struct Player
     // Feeling f=ma,
     // might delete late X/
     Vector2 vel;
+    Vector2 accel;
     // For celeste style
     Vector2 rem;
     // Jumping
+    double gravity;
+    double jumpVel;
     bool canJump;
     int jumpCount;
     bool jumpPressed;
@@ -99,10 +111,10 @@ struct Player
 
 void Jump(Player* p, Time time)
 {
-    p->vel.y = JUMP_VELOCITY;
-    p->jumpPressed = false;
+    p->vel.y = p->jumpVel;
     p->jumpCount++;
     p->jumpLastPressed = time;
+    p->jumpPressed = false;
 }
 
 void TryJump(Player* p, Time time)
@@ -221,21 +233,10 @@ void MoveY(Player* p, float amount, AABB* collideables, int collideableCount, Ti
     }
 }
 
-void PlayerMovement(Player* p, float dt, Time time)
+void PlayerMovement(Player* p, double dt, Time time)
 {
-    if (IsKeyPressed(KEY_SPACE))
-    {
-        p->jumpPressed = true;
-        p->jumpLastPressed = time;
-
-        // debug
-            canJump = p->canJump;
-            jumpPressed = p->jumpPressed;
-            tlastGround = time - p->lastOnGround < COYOTE_MS;
-            tlastJump = time - p->jumpLastPressed < JUMP_BUFFER_MS;
-    }
     TryJump(p, time); // Always try to jump, to make coyote time work
-    int xDir = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
+    int xDir = IsKeyDown(RIGHT) - IsKeyDown(LEFT);
     p->vel.x = XMOVSPD * xDir;
 }
 
@@ -246,13 +247,14 @@ void MoveXY(Player* p, Vector2 amount, AABB* collideables, int collideableCount,
 }
 
 
-void ApplyGravity(Player* p, float dt)
+void ApplyGravity(Player* p, double dt)
 {
     if (!p->onGround)
     {
-        // printf("onGround = %d | ", p->onGround);
-        p->vel.y += GRAVITY * dt;
-        _lastGravityAdded = GRAVITY * dt;
+        float gMult = 1;
+        gMult = (p->vel.y < 0) ? 1 : GRAVITY_FALL_MULTIPLIER;
+        p->vel.y += p->gravity * gMult * dt;
+        _lastGravityAdded = p->gravity * gMult * dt;
     }
 }
 void CheckPlayerOnGround(Player* p, AABB* collideables, int collideableCount, Time time)
@@ -279,9 +281,8 @@ void CheckPlayerOnGround(Player* p, AABB* collideables, int collideableCount, Ti
     }
 }
 
-void PhysicsProcess(Player* p, float dt, AABB* collideables, int collideableCount)
+void PhysicsProcess(Player* p, double dt, Time time, AABB* collideables, int collideableCount)
 {
-    Time time = GetTimeMS();
     CheckPlayerOnGround(p, collideables, collideableCount, time);
     ApplyGravity(p, dt);
     PlayerMovement(p, dt, time);
@@ -312,13 +313,33 @@ void DrawDebugInfo(Player* p)
     DrawText(TextFormat("LastGravityAdded = %.1f, onGround was %d, onGond was %d", _lastGravityAdded, p->onGround, onGondCount), 20, 110, 20, YELLOW);
     DrawText(TextFormat("onGondCount: %d", onGondCount), 20, 140, 20, YELLOW);
     DrawText(TextFormat("canJump = %d, jumpPressed = %d, lastGroundCheck = %d, lastJumpPressCheck = %d", canJump, jumpPressed, tlastGround, tlastJump), 20, 170, 20, YELLOW);
+    DrawText(TextFormat("gravity = %f, jumpVel = %f", p->gravity, p->jumpVel), 20, 200, 20, YELLOW);
 }
 
 void UpdateCameraCenter(Camera2D *camera, Player* player, int width, int height)
 {
     camera->offset = (Vector2){width/2.f, height/2.f};
-        camera->target = player->pos;
+    camera->target = player->pos;
+    IsKeyReleased(JUMP);
 }
+
+void CalculatePlayerGravity(Player* p, float timeToApex, float maxHeight)
+{
+    p->jumpVel = -2 * maxHeight / timeToApex;
+    p->gravity =  2 * maxHeight / (timeToApex * timeToApex);
+}
+
+/*
+void Update()
+{
+if (rb.velocity.y < 0){
+rb.velocity += vecdtor2.up * physics2d.gravity.y * (fally multiplier - 1)) - time.deltatime
+} else if (rb.velocity.y > 0 && !input.getButton(jump))
+{
+rb.velocity += vector2.up * physics2d.gravity.y * (lowjumpmultiplier - 1) * tie.deltatime
+}
+}
+*/
 
 int main(void)
 {
@@ -326,13 +347,15 @@ int main(void)
     int windowHeight = 720;
     InitWindow(windowWidth, windowHeight, "Some fucking title");
 
-    float targetFrameTimeMS = 1.f / TARGET_FPS;
 
     Player player = {0};
     { // Init player
         player.pos = (Vector2){(float)windowWidth/2, 0};
         player.size = (Vector2){24, 32};
+        player.accel = (Vector2){500, 32};
     }
+
+    CalculatePlayerGravity(&player, 0.5, 160. + player.size.y/2);
 
     Camera2D camera = {0};
     camera.target = player.pos;
@@ -370,38 +393,74 @@ int main(void)
 
     Time lastFrameTime = 0;
 
-    float targetPhysicsMS = 1.f / PHYSICS_PROCESS_FPS;
+    double targetPhysicsMS = 1000. / PHYSICS_PROCESS_FPS;
+    double targetFrameTimeMS = 1000. / TARGET_FPS;
 
-    float frameDtAccumulator = GetTimeMS();
-    float physicsDtAccumulator = frameDtAccumulator;
+    double frameDtAccumulator = GetTimeMS();
+    double physicsDtAccumulator = frameDtAccumulator;
 
     while (!WindowShouldClose())
     {
         Time currentFrameTime = GetTimeMS();
-        float frameDT = currentFrameTime - lastFrameTime;
+        double frameDt = currentFrameTime - lastFrameTime;
+
+        physicsDtAccumulator += frameDt;
+
+        if (IsKeyPressed(JUMP))
+        {
+            player.jumpPressed = true;
+            player.jumpLastPressed = currentFrameTime;
+
+            // debug
+                canJump = player.canJump;
+                jumpPressed = player.jumpPressed;
+                tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
+                tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
+        }
+        if (IsKeyReleased(JUMP) && player.vel.y < player.jumpVel/2.)
+        {
+            player.vel.y /= 2.;
+        }
 
         if (physicsDtAccumulator > targetPhysicsMS)
         {
             physicsDtAccumulator -= targetPhysicsMS;
-            PhysicsProcess(&player, targetPhysicsMS, collideables, collideableCount);
+            // convert ms to seconds for deltaTime calculations
+            PhysicsProcess(&player, targetPhysicsMS / 1000, currentFrameTime, collideables, collideableCount);
+
+            UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
+            BeginDrawing();
+            {
+                ClearBackground(backgroundColor);
+                BeginMode2D(camera);
+                {
+                    DrawBoxes(boxes, boxCount);
+                    DrawPlayer(&player);
+                }
+                EndMode2D();
+
+                DrawDebugInfo(&player);
+                DrawFPS(20, windowHeight - 100);
+            }
+            EndDrawing();
         }
 
         { // Update
-            UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
         }
-        BeginDrawing();
-        {
-            ClearBackground(backgroundColor);
-            BeginMode2D(camera);
-            {
-                DrawBoxes(boxes, boxCount);
-                DrawPlayer(&player);
-            }
-            EndMode2D();
-            DrawDebugInfo(&player);
-            DrawFPS(20, windowHeight - 100);
-        }
-        EndDrawing();
+        // BeginDrawing();
+        // {
+        //     ClearBackground(backgroundColor);
+        //     BeginMode2D(camera);
+        //     {
+        //         DrawBoxes(boxes, boxCount);
+        //         DrawPlayer(&player);
+        //     }
+        //     EndMode2D();
+
+        //     DrawDebugInfo(&player);
+        //     DrawFPS(20, windowHeight - 100);
+        // }
+        // EndDrawing();
 
         lastFrameTime = currentFrameTime;
     }
