@@ -359,7 +359,7 @@ int main(void)
         player.size = (Vector2){0.75, 1} * TSIZE;
     }
 
-    CalculatePlayerGravity(&player, 0.5, 4*TSIZE + player.size.y/2);
+    CalculatePlayerGravity(&player, 0.5, 3*TSIZE + player.size.y/2);
 
     Camera2D camera = {0};
     camera.target = (Vector2){windowWidth/2.f, windowHeight/2.f};
@@ -421,9 +421,9 @@ int main(void)
                 tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
                 tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
         }
-        if (IsKeyReleased(JUMP) && player.vel.y < 0)
+        if (IsKeyReleased(JUMP))
         {
-            player.vel.y *= 0.5;
+            if (player.vel.y < 0) player.vel.y *= 0.1;
         }
         if (physicsDtAccumulator > targetPhysicsMS)
         {
