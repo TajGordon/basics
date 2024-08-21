@@ -58,7 +58,7 @@ typedef long double Time;
 #define COYOTE_MS 100
 #define JUMP_BUFFER_MS 200
 
-#define GRAVITY_FALL_MULTIPLIER 1.5
+#define GRAVITY_FALL_MULTIPLIER 2.0
 
 #define XMOVSPD 500
 
@@ -253,6 +253,9 @@ void ApplyGravity(Player* p, double dt)
     {
         float gMult = 1;
         gMult = (p->vel.y < 0) ? 1 : GRAVITY_FALL_MULTIPLIER;
+
+        if (-p->vel.y < -p->jumpVel/20. || -p->vel.y > p->jumpVel/20) gMult = 0.9;
+
         p->vel.y += p->gravity * gMult * dt;
         _lastGravityAdded = p->gravity * gMult * dt;
     }
@@ -417,9 +420,9 @@ int main(void)
                 tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
                 tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
         }
-        if (IsKeyReleased(JUMP) && player.vel.y < player.jumpVel/2.)
+        if (IsKeyReleased(JUMP) && player.vel.y > player.jumpVel * 0.9)
         {
-            player.vel.y /= 2.;
+            player.vel.y *= 0.5;
         }
 
         if (physicsDtAccumulator > targetPhysicsMS)
