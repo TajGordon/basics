@@ -57,13 +57,10 @@ typedef long double Time;
 
 #define TSIZE 32
 
-#define COYOTE_MS 100
+#define COYOTE_MS 150
 #define JUMP_BUFFER_MS 200
 
 #define GRAVITY_FALL_MULTIPLIER 2.0
-
-#define XMOVSPD 500
-
 
 /**************************************
 *             Controls                *
@@ -89,6 +86,8 @@ struct Player
     // Feeling f=ma,
     // might delete late X/
     Vector2 vel;
+    float movementSpeed;
+    float accel;
     // For celeste style
     Vector2 rem;
     // Jumping
@@ -235,19 +234,25 @@ void MoveY(Player* p, float amount, AABB* collideables, int collideableCount, Ti
     }
 }
 
+
 void PlayerMovement(Player* p, double dt, Time time)
 {
     TryJump(p, time); // Always try to jump, to make coyote time work
     int xDir = IsKeyDown(RIGHT) - IsKeyDown(LEFT);
-    p->vel.x = XMOVSPD * xDir;
+
+    { // Step towards value
+        float mult = xDir;
+        if (p->vel.x < 0 & xDir > 0) mult = 3;
+        if (p->vel.x > 0 & xDir < 0) mult = 3;
+        p->vel.x += p->accel * mult * xDir * dt;
+    }
 }
 
-void MoveXY(Player* p, Vector2 amount, AABB* collideables, int collideableCount, Time time)
+void PlayerMoveXY(Player* p, Vector2 amount, AABB* collideables, int collideableCount, Time time)
 {
     MoveX(p, amount.x, collideables, collideableCount, time);
     MoveY(p, amount.y, collideables, collideableCount, time);
 }
-
 
 void ApplyGravity(Player* p, double dt)
 {
@@ -256,7 +261,7 @@ void ApplyGravity(Player* p, double dt)
         float gMult = 1;
         gMult = (p->vel.y < 0) ? 1 : GRAVITY_FALL_MULTIPLIER;
 
-        if (-p->vel.y < -p->jumpVel/20. || -p->vel.y > p->jumpVel/20) gMult = 0.9;
+        if (-p->vel.y < -p->jumpVel/10. || -p->vel.y > p->jumpVel/10) gMult = 0.9;
 
         p->vel.y += p->gravity * gMult * dt;
         _lastGravityAdded = p->gravity * gMult * dt;
@@ -291,7 +296,7 @@ void PhysicsProcess(Player* p, double dt, Time time, AABB* collideables, int col
     CheckPlayerOnGround(p, collideables, collideableCount, time);
     ApplyGravity(p, dt);
     PlayerMovement(p, dt, time);
-    MoveXY(p, p->vel * dt, collideables, collideableCount, time);
+    PlayerMoveXY(p, p->vel * dt, collideables, collideableCount, time);
 }
 
 void DrawPlayer(Player* p)
@@ -357,9 +362,11 @@ int main(void)
     { // Init player
         player.pos = (Vector2){(float)windowWidth/2, 0};
         player.size = (Vector2){0.75, 1} * TSIZE;
+        player.movementSpeed = 400;
+        player.accel = 2 * player.movementSpeed;
     }
 
-    CalculatePlayerGravity(&player, 0.5, 3*TSIZE + player.size.y/2);
+    CalculatePlayerGravity(&player, 0.5, 2*TSIZE + player.size.y/2);
 
     Camera2D camera = {0};
     camera.target = (Vector2){windowWidth/2.f, windowHeight/2.f};
@@ -410,23 +417,25 @@ int main(void)
 
         physicsDtAccumulator += frameDt;
 
-        if (IsKeyPressed(JUMP))
-        {
-            player.jumpPressed = true;
-            player.jumpLastPressed = currentFrameTime;
-
-            // debug
-                canJump = player.canJump;
-                jumpPressed = player.jumpPressed;
-                tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
-                tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
-        }
-        if (IsKeyReleased(JUMP))
-        {
-            if (player.vel.y < 0) player.vel.y *= 0.1;
-        }
         if (physicsDtAccumulator > targetPhysicsMS)
         {
+            if (IsKeyPressed(JUMP))
+            {
+                player.jumpPressed = true;
+                player.jumpLastPressed = currentFrameTime;
+
+                // debug
+                    canJump = player.canJump;
+                    jumpPressed = player.jumpPressed;
+                    tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
+                    tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
+            }
+            if (IsKeyReleased(JUMP))
+            {
+                if (player.vel.y < 0) player.vel.y *= 0.5;
+            }
+            /**********************************************/
+
             physicsDtAccumulator -= targetPhysicsMS;
             // convert ms to seconds for deltaTime calculations
             PhysicsProcess(&player, targetPhysicsMS / 1000, currentFrameTime, collideables, collideableCount);
