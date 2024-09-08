@@ -1,0 +1,41 @@
+In order to be a metroidvania,
+needs to be open world, where you can go anywhere
+- if you could only get past that one little thing, that jump that's just a little bit too high to make it
+
+We are making a tiny game, for a game jam
+
+******************
+ PLAYER MECHANICS
+******************
+Turn into a Bat
+Melee Swing Hit attack
+Lunge
+
+******************
+      PLOT
+******************
+You're weakened, starving, and pitiful.
+Regain your strength by drinking the blood of enemies.
+But the putrid blood of weak enemies makes you sick,
+you need something better.
+Crippled, you've lost all your abilities,
+you must regain your strength, to take revenge on your enemies.
+
+Blood is a vampire's source of strength.
+Drink more to power up, and unlock your past powers.
+
+******************
+       Idk
+******************
+
+Vampire themed abilities?
+    Bat shit? - Gaining the ability to become a bat for a shot period of time?
+        Having a short period of time being small and flying would be able to get to new areas
+        How do we unlock the ability to become a bat?
+            Reaching a high enough blood level?
+
+have like a "locked door" but you can just open it
+have a pathway with boulders blocking it and a "hmm, if only I could blast these boulders"
+have the entrance to the boss be marked "secret exit"
+
+blood magic = make a blood spike appear from any blood puddles or things on the ground
