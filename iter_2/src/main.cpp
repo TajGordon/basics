@@ -1,480 +1,288 @@
 #include "raylib.h"
-#include "raymath.h"
-#include <stdio.h>
-#include <time.h>
+#include <cmath>
 
-/**************************************
-*              Random Math            *
-**************************************/
-#define round(x) (int)(x)
+/**************/
+/* MATH STUFF */
+/**************/
+#define Round(x) (int)(x)
+#define Sign(x) ((x) < 0) ? -1 : 1
 
-int sign(int x)
-{
-    return (x > 0) ? 1 : -1;
-}
-Vector2 operator+(Vector2 a, Vector2 b)
-{
-    return (Vector2){a.x + b.x, a.y + b.y};
-}
-Vector2 operator-(Vector2 a, Vector2 b)
-{
-    return (Vector2){a.x - b.x, a.y - b.y};
-}
-Vector2 operator*(Vector2 a, Vector2 b)
-{
-    return (Vector2){a.x * b.x, a.y * b.y};
-}
-Vector2 operator/(Vector2 a, Vector2 b)
-{
-    return (Vector2){a.x / b.x, a.y / b.y};
-}
-Vector2 operator+(Vector2 v, float f)
-{
-    return (Vector2){v.x + f, v.y + f};
-}
-Vector2 operator-(Vector2 v, float f)
-{
-    return (Vector2){v.x - f, v.y - f};
-}
-Vector2 operator*(Vector2 v, float f)
-{
-    return (Vector2){v.x * f, v.y * f};
-}
-Vector2 operator/(Vector2 v, float f)
-{
-    return (Vector2){v.x / f, v.y / f};
-}
-
-
-/**************************************
-*                                     *
-**************************************/
-
-typedef long double Time;
-
-#define TARGET_FPS 60
-#define PHYSICS_PROCESS_FPS 60
-
-#define TSIZE 32
-
-#define COYOTE_MS 150
-#define JUMP_BUFFER_MS 200
-
-#define GRAVITY_FALL_MULTIPLIER 2.0
-
-/**************************************
-*             Controls                *
-**************************************/
-#define JUMP KEY_SPACE
-#define LEFT KEY_A
-#define RIGHT KEY_D
-
-
-
-// debug
-bool canJump;
-bool jumpPressed;
-bool tlastGround;
-bool tlastJump;
-float _lastGravityAdded = 0;
-int onGondCount = 0;
-
-struct Player
-{
-    Vector2 pos;
-    Vector2 size;
-    // Feeling f=ma,
-    // might delete late X/
-    Vector2 vel;
-    float movementSpeed;
-    float accel;
-    // For celeste style
-    Vector2 rem;
-    // Jumping
-    double gravity;
-    double jumpVel;
-    bool canJump;
-    int jumpCount;
-    bool jumpPressed;
-    Time jumpLastPressed;
-    bool onGround;
-    Time lastOnGround;
-};
-
- Time GetTimeMS()
-{
-    // clock is cpu time since program start,
-    // divide by clocks_per_sec to convert to seconds
-    // multiply seconds by 1000 to get miliseconds
-    Time time = ((double)clock() / CLOCKS_PER_SEC) * 1000;
-    return time;
-}
-
-void Jump(Player* p, Time time)
-{
-    p->vel.y = p->jumpVel;
-    p->jumpCount++;
-    p->jumpLastPressed = time;
-    p->jumpPressed = false;
-}
-
-void TryJump(Player* p, Time time)
-{
-    p->canJump = (p->jumpPressed && p->jumpCount < 1 && time - p->lastOnGround < COYOTE_MS && time - p->jumpLastPressed < JUMP_BUFFER_MS);
-    if (p->canJump)
-    {
-        // HOLY FUCK I LOVE CLEAN CODE
-        // THIS IS SUPER FUCKING POINTLESS TO HAVE A FUNCTION THAT ABSTRACTS ONE FUCKING LINE OF CODE
-        // BUT HOLY FUCK I LOVE CLEAN CODE
-        // ITS SO OBVIOUS THAT THE OTHER CODE IS ABOUT DOING THE JUMP
-        // FOR ME TO CHANGE IT IN THE FUTURE
-        // I FUCKIGN LOVE CLEAN CODE!!!!!!!!!!!!!!!!
-        Jump(p, time);
-    }
-}
-
-struct AABB
+typedef struct AABB
 {
     Vector2 min;
     Vector2 max;
-};
+} AABB;
 
-struct Rect
-{
-    Vector2 pos;
-    Vector2 size;
-};
-
-
-struct Box
-{
-    Rect rec;
-    Color color;
-};
-
-AABB RecToAABB(Rect r)
-{
-    return (AABB){(Vector2){r.pos.x - (r.size.x/2), r.pos.y - (r.size.y/2)}, (Vector2){r.pos.x + (r.size.x/2), r.pos.y + (r.size.y/2)}};
-}
-
-AABB makeAABB(Vector2 v, Vector2 size)
-{
-    return (AABB){v, v + size};
-}
-
-int AABBsColliding(AABB a, AABB b)
+bool AABBsColliding(AABB a, AABB b)
 {
     if (a.max.x < b.min.x || a.min.x > b.max.x) return false;
     if (a.max.y < b.min.y || a.min.y > b.max.y) return false;
     return true;
 }
 
-int PlayerCollidingAt(Player* p, Vector2 position, AABB* collideables, int collideableCount)
+Vector2 operator+(Vector2 v1, Vector2 v2)
 {
-    AABB pab = makeAABB(position - (p->size/2), p->size);
-    // TODO! This should be an actual array
-    // Real;y fucking todo
-    // collission checking prolly dont work
-    // if this isn't initialised the players y position wont go off the screen
-    // only happens to y position
+    return {v1.x + v2.x, v1.y + v2.y};
+}
+Vector2 operator-(Vector2 v1, Vector2 v2)
+{
+    return {v1.x - v2.x, v1.y - v2.y};
+}
+Vector2 operator*(Vector2 v, float f)
+{
+    return {v.x * f, v.y * f};
+}
+Vector2 operator/(Vector2 v, float f)
+{
+    return {v.x / f, v.y / f};
+}
 
-    for (int i = 0; i < collideableCount; i++)
+float Vector2Length(Vector2 v)
+{
+    return sqrt(v.x*v.x + v.y*v.y);
+}
+
+Vector2 Vector2Normalize(Vector2 v)
+{
+    return v / Vector2Length(v);
+}
+
+/**********************/
+/* Constants and shit */
+/**********************/
+const double physicsDTs = 1. / 60;
+
+/***************/
+/* Actor Stuff */
+/***************/
+
+typedef struct Actor
+{
+    Vector2 pos;
+    Vector2 size;
+    AABB aabb;
+    float xRemainder;
+    float yRemainder;
+
+    Vector2 dir;
+
+    /* Rendering stuff */
+    Color col;
+} Actor;
+
+typedef struct Solid
+{
+    Vector2 pos;
+    Vector2 size;
+    AABB aabb;
+    float xRemainder;
+    float yRemainder;
+    bool collideable;
+
+    Color color;
+} Solid;
+
+void DrawActor(Actor a)
+{
+    DrawRectangleV(a.pos - (a.size / 2), a.size, a.col);
+}
+
+bool ActorCollidingAt(Actor* a, Vector2 pos, Solid* solids, int solidCount)
+{
+    AABB aabb = {.max = pos + (a->size/2), .min = pos - (a->size/2)};
+    for (int i = 0; i < solidCount; i++)
     {
-        if (AABBsColliding(pab, collideables[i]))
+        Solid* s = &solids[i];
+        if (s->collideable && AABBsColliding(aabb, s->aabb))
         {
             return true;
         }
     }
-
     return false;
 }
 
-void MoveX(Player* p, float amount, AABB* collideables, int collideableCount, Time time)
+void MoveX(Actor* a, float amount, Solid* solids, int solidCount)
 {
-    p->rem.x += amount;
-    int move = round(amount);
-    if (move == 0) return;
-    p->rem.x -= move;
-    int Sign = sign(move);
-    while (move != 0)
+    a->xRemainder += amount;
+    int move = Round(a->xRemainder);
+    if (move != 0)
     {
-        Vector2 newPos = p->pos;
-        newPos.x += (float)Sign;
-        if (PlayerCollidingAt(p, newPos, collideables, collideableCount))
+        a->xRemainder -= move;
+        int sign = Sign(move);
+        while (move != 0)
         {
-            p->vel.x = 0;
-            break;
+            if (!ActorCollidingAt(a, {a->pos.x + sign, a->pos.y}, solids, solidCount))
+            {
+                a->pos.x += sign;
+                move -= sign;
+            }
+            else
+            {
+                // colliding
+                break;
+            }
         }
-        p->pos.x += (float)Sign;
-        move -= Sign;
     }
 }
 
-void MoveY(Player* p, float amount, AABB* collideables, int collideableCount, Time time)
+void MoveY(Actor* a, float amount, Solid* solids, int solidCount)
 {
-    p->rem.y += amount;
-    int move = round(amount);
-    if (move == 0) return;
-    p->rem.y -= move;
-    int Sign = sign(move);
-    while (move != 0)
+    a->yRemainder += amount;
+    int move = Round(a->yRemainder);
+    if (move != 0)
     {
-        Vector2 newPos = p->pos;
-        newPos.y += (float)Sign;
-        if (PlayerCollidingAt(p, newPos, collideables, collideableCount))
+        a->yRemainder -= move;
+        int sign = Sign(move);
+        while (move != 0)
         {
-            p->onGround = true;
-            p->lastOnGround = time;
-            p->vel.y = 0;
-            p->jumpCount = 0;
-            break;
+            if (!ActorCollidingAt(a, {a->pos.x, a->pos.y + sign}, solids, solidCount))
+            {
+                a->pos.y += sign;
+                move -= sign;
+            }
+            else
+            {
+                // colliding
+                break;
+            }
         }
-        p->pos.y += (float)Sign;
-        move -= Sign;
     }
 }
 
-
-void PlayerMovement(Player* p, double dt, Time time)
+void PlayerInput(Actor* p)
 {
-    TryJump(p, time); // Always try to jump, to make coyote time work
-    int xDir = IsKeyDown(RIGHT) - IsKeyDown(LEFT);
-
-    { // Step towards value
-        float mult = xDir;
-        if (p->vel.x < 0 & xDir > 0) mult = 3;
-        if (p->vel.x > 0 & xDir < 0) mult = 3;
-        p->vel.x += p->accel * mult * xDir * dt;
-    }
+    Vector2 dir = {(float)IsKeyDown(KEY_D) - IsKeyDown(KEY_A), (float)IsKeyDown(KEY_S) - IsKeyDown(KEY_W)};
+    if (dir.x > 0 || dir.y > 0) dir = Vector2Normalize(dir);
+    p->dir = dir * 10;
 }
 
-void PlayerMoveXY(Player* p, Vector2 amount, AABB* collideables, int collideableCount, Time time)
+void PlayerPhysicsProcess(Actor* p, Solid* solids, int solidCount)
 {
-    MoveX(p, amount.x, collideables, collideableCount, time);
-    MoveY(p, amount.y, collideables, collideableCount, time);
+    MoveX(p, p->dir.x, solids, solidCount);
+    MoveY(p, p->dir.y, solids, solidCount);
 }
 
-void ApplyGravity(Player* p, double dt)
+Actor** GetRidingActors(Solid* s)
 {
-    if (!p->onGround)
+    return 0;
+}
+
+void Move(Solid* s, float x, float y)
+{
+    s->xRemainder += x;
+    s->yRemainder += y;
+    int moveX = Round(s->xRemainder);
+    int moveY = Round(s->yRemainder);
+    if (moveX != 0 || moveY != 0)
     {
-        float gMult = 1;
-        gMult = (p->vel.y < 0) ? 1 : GRAVITY_FALL_MULTIPLIER;
+        s->collideable = false;
 
-        if (-p->vel.y < -p->jumpVel/10. || -p->vel.y > p->jumpVel/10) gMult = 0.9;
+        int riderCount = 0;
+        Actor** riders = GetRidingActors(s);
 
-        p->vel.y += p->gravity * gMult * dt;
-        _lastGravityAdded = p->gravity * gMult * dt;
+        if (moveX != 0)
+        {
+            s->xRemainder -= moveX;
+            s->pos.x += moveX;
+            if (moveX > 0)
+            { // not handling collision logic rn, we just move
+            }
+            else
+            {
+            }
+        }
+        if (moveY != 0)
+        {
+            s->yRemainder -= moveY;
+            s->pos.y += moveY;
+            if (moveY > 0) // moving down
+            {
+            }
+            else
+            {
+            }
+        }
     }
 }
-void CheckPlayerOnGround(Player* p, AABB* collideables, int collideableCount, Time time)
-{
-    // on touching the gronud turn it on, then everytime check if we moved down a litt,e would we collide with something? if so then we are on ground
-    // when we touch the ground, set onGround = true
-    // touch the ground = collide with something in the positive y direction, then teleport (or not even need to with our movement method) the player up
-    // then every physics process (set to a set rate, where a variable framerate only affects drawing)
-    // (there is something we can do with interpolation to make the game appear smoother at higher fps disregarding framerate, but I'm not sure what)'
-    // check cakez video cuz i think he mentioned it
 
-    // this function doesn't do the initial set'
-    // if onGround = false, then we let the other function handle it
-    if (p->onGround)
+void DrawSolids(Solid* solids, int solidCount)
+{
+    for (int i = 0; i < solidCount; i++)
     {
-        // if the player is colliding if we move down, then we are on ground
-        // 1
-        p->onGround = PlayerCollidingAt(p, p->pos + (Vector2){0, 1}, collideables, collideableCount);
-        if (p->onGround) p->lastOnGround = time;
-    }
-    else
-    {
-        onGondCount++;
+        Solid* s = &solids[i];
+        DrawRectangleV(s->pos - (s->size/2), s->size, s->color);
     }
 }
 
-void PhysicsProcess(Player* p, double dt, Time time, AABB* collideables, int collideableCount)
+Solid MakeSolid(float x, float y, float width, float height, Color color, bool collideable)
 {
-    CheckPlayerOnGround(p, collideables, collideableCount, time);
-    ApplyGravity(p, dt);
-    PlayerMovement(p, dt, time);
-    PlayerMoveXY(p, p->vel * dt, collideables, collideableCount, time);
+    Solid s = {0};
+    s.pos = {x, y};
+    s.size = {width, height};
+    s.aabb.max = s.pos + (s.size/2);
+    s.aabb.min = s.pos - (s.size/2);
+    s.color = color;
+    s.collideable = collideable;
+    return s;
 }
 
-void DrawPlayer(Player* p)
+void PhysicsUpdate(Actor* p, Solid* solids, int solidCount)
 {
-    DrawRectangleV(p->pos - (p->size / 2), p->size, YELLOW);
+    /* Player */
+    PlayerInput(p);
+    PlayerPhysicsProcess(p, solids, solidCount);
 }
-
-void DrawBoxes(Box* boxes, int boxCount)
-{
-    for (int i = 0; i < boxCount; i++)
-    {
-        Box box = boxes[i];
-        box.rec.pos = box.rec.pos - (box.rec.size / 2);
-        DrawRectangleV(box.rec.pos, box.rec.size, box.color);
-    }
-}
-
-void DrawDebugInfo(Player* p)
-{
-    // DBG
-    DrawText(TextFormat("onGround = %d", p->onGround), 20, 20, 20, YELLOW);
-    DrawText(TextFormat("Position = %.1f, %.6f", p->pos.x, p->pos.y), 20, 50, 20, YELLOW);
-    DrawText(TextFormat("Velocity = %.1f, %.6f", p->vel.x, p->vel.y), 20, 80, 20, YELLOW);
-    DrawText(TextFormat("LastGravityAdded = %.1f, onGround was %d, onGond was %d", _lastGravityAdded, p->onGround, onGondCount), 20, 110, 20, YELLOW);
-    DrawText(TextFormat("onGondCount: %d", onGondCount), 20, 140, 20, YELLOW);
-    DrawText(TextFormat("canJump = %d, jumpPressed = %d, lastGroundCheck = %d, lastJumpPressCheck = %d", canJump, jumpPressed, tlastGround, tlastJump), 20, 170, 20, YELLOW);
-    DrawText(TextFormat("gravity = %f, jumpVel = %f", p->gravity, p->jumpVel), 20, 200, 20, YELLOW);
-}
-
-void UpdateCameraCenter(Camera2D *camera, Player* player, int width, int height)
-{
-    camera->offset = (Vector2){width/2.f, height/2.f};
-    camera->target = player->pos;
-    IsKeyReleased(JUMP);
-}
-
-void CalculatePlayerGravity(Player* p, float timeToApex, float maxHeight)
-{
-    p->jumpVel = -2 * maxHeight / timeToApex;
-    p->gravity =  2 * maxHeight / (timeToApex * timeToApex);
-}
-
-/*
-void Update()
-{
-if (rb.velocity.y < 0){
-rb.velocity += vecdtor2.up * physics2d.gravity.y * (fally multiplier - 1)) - time.deltatime
-} else if (rb.velocity.y > 0 && !input.getButton(jump))
-{
-rb.velocity += vector2.up * physics2d.gravity.y * (lowjumpmultiplier - 1) * tie.deltatime
-}
-}
-*/
 
 int main(void)
 {
-    int windowWidth = 1280;
-    int windowHeight = 720;
-    InitWindow(windowWidth, windowHeight, "Some fucking title");
+    const int windowWidth = 1280;
+    const int windowHeight = 720;
+    InitWindow(windowWidth, windowHeight, "A window");
+    SetTargetFPS(120);
 
+    #define MAX_SOLID_COUNT 100
+    Solid* solids = (Solid*)malloc(sizeof(Solid) * MAX_SOLID_COUNT);
+    int solidCount = 0;
 
-    Player player = {0};
-    { // Init player
-        player.pos = (Vector2){(float)windowWidth/2, 0};
-        player.size = (Vector2){0.75, 1} * TSIZE;
-        player.movementSpeed = 400;
-        player.accel = 2 * player.movementSpeed;
-    }
-
-    CalculatePlayerGravity(&player, 0.5, 2*TSIZE + player.size.y/2);
-
-    Camera2D camera = {0};
-    camera.target = (Vector2){windowWidth/2.f, windowHeight/2.f};
-    camera.offset = (Vector2){ windowWidth/2.0f, windowHeight/2.0f };
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
-
-    Color backgroundColor = (Color){22, 22, 22, 255};
-
-    Box boxes[20] = {0};
-    int boxCount = 0;
-    Box floor = {0};
+    Actor p = {0};
     {
-        floor.rec = {(Vector2){(float)windowWidth/2, (float)windowHeight}, (Vector2){(float)windowWidth, 320}};
-        floor.color = (Color){11, 11, 11, 255};
-        boxes[boxCount++] = floor;
+        p.pos = {400, 400};
+        p.size = {40, 40};
+        p.col = YELLOW;
+        p.aabb.max = p.pos + (p.size/2);
+        p.aabb.min = p.pos - (p.size/2);
     }
+
+    Camera2D camera;
     {
-        boxes[1].rec = {(Vector2){10*TSIZE, 10*TSIZE}, (Vector2){1, 1}*TSIZE};
-        boxes[1].color = RED;
-        boxCount++;
-        boxes[2].rec = {(Vector2){20*TSIZE, 12*TSIZE}, (Vector2){1, 1}*TSIZE};
-        boxes[2].color = GREEN;
-        boxCount++;
-        boxes[3].rec = {(Vector2){30*TSIZE, 15*TSIZE}, (Vector2){1, 1}*TSIZE};
-        boxes[3].color = BLUE;
-        boxCount++;
-    }
-    AABB* collideables = (AABB*)malloc(sizeof(AABB) * boxCount);
-    int collideableCount = boxCount;
-    for (int i = 0; i < boxCount; i++)
-    {
-        collideables[i] = RecToAABB(boxes[i].rec);
+        camera.zoom = 2;
+        camera.rotation = 0;
+        camera.offset = {0};
+        camera.target = {0};
     }
 
-    Time lastFrameTime = 0;
+    solids[solidCount++] = MakeSolid(640, 720, 1280, 200, GRAY, true);
+    solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, true);
 
-    double targetPhysicsMS = 1000. / PHYSICS_PROCESS_FPS;
-    double targetFrameTimeMS = 1000. / TARGET_FPS;
-
-    double frameDtAccumulator = GetTimeMS();
-    double physicsDtAccumulator = frameDtAccumulator;
-
+    double physicsAccumulator = 0;
     while (!WindowShouldClose())
     {
-        Time currentFrameTime = GetTimeMS();
-        double frameDt = currentFrameTime - lastFrameTime;
-
-        physicsDtAccumulator += frameDt;
-
-        if (physicsDtAccumulator > targetPhysicsMS)
+        float dt = GetFrameTime();
+        physicsAccumulator += dt;
+        if (physicsAccumulator > physicsDTs)
         {
-            if (IsKeyPressed(JUMP))
-            {
-                player.jumpPressed = true;
-                player.jumpLastPressed = currentFrameTime;
-
-                // debug
-                    canJump = player.canJump;
-                    jumpPressed = player.jumpPressed;
-                    tlastGround = currentFrameTime - player.lastOnGround < COYOTE_MS;
-                    tlastJump = currentFrameTime - player.jumpLastPressed < JUMP_BUFFER_MS;
-            }
-            if (IsKeyReleased(JUMP))
-            {
-                if (player.vel.y < 0) player.vel.y *= 0.5;
-            }
-            /**********************************************/
-
-            physicsDtAccumulator -= targetPhysicsMS;
-            // convert ms to seconds for deltaTime calculations
-            PhysicsProcess(&player, targetPhysicsMS / 1000, currentFrameTime, collideables, collideableCount);
-
-            // UpdateCameraCenter(&camera, &player, windowWidth, windowHeight);
-            BeginDrawing();
-            {
-                ClearBackground(backgroundColor);
-                BeginMode2D(camera);
-                {
-                    DrawBoxes(boxes, boxCount);
-                    DrawPlayer(&player);
-                }
-                EndMode2D();
-
-                DrawDebugInfo(&player);
-                DrawText(TextFormat("physics simulation FPS = %.1f", 1000/targetPhysicsMS), 20, windowHeight - 50, 20, YELLOW);
-            }
-            EndDrawing();
+            physicsAccumulator -= physicsDTs;
+            PhysicsUpdate(&p, solids, solidCount);
         }
-
-        { // Update
+        BeginMode2D(camera);
+        BeginDrawing();
+        {
+            ClearBackground(BLUE);
+            DrawSolids(solids, solidCount);
+            DrawActor(p);
         }
-        // BeginDrawing();
-        // {
-        //     ClearBackground(backgroundColor);
-        //     BeginMode2D(camera);
-        //     {
-        //         DrawBoxes(boxes, boxCount);
-        //         DrawPlayer(&player);
-        //     }
-        //     EndMode2D();
-
-        //     DrawDebugInfo(&player);
-        //     DrawFPS(20, windowHeight - 100);
-        // }
-        // EndDrawing();
-
-        lastFrameTime = currentFrameTime;
+        EndDrawing();
+        EndMode2D();
     }
     CloseWindow();
 
