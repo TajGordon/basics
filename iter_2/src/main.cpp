@@ -1,13 +1,11 @@
 #include "raylib.h"
 #include "guplib.cpp"
+#include <ctime>
 #include <malloc/_malloc.h>
-
 
 
 int main(void)
 {
-    const int windowWidth = 1280;
-    const int windowHeight = 720;
     InitWindow(windowWidth, windowHeight, "A window");
     SetTargetFPS(120);
 
@@ -15,25 +13,36 @@ int main(void)
     Solid* solids = (Solid*)malloc(sizeof(Solid) * MAX_SOLID_COUNT);
     int solidCount = 0;
 
-    Actor p = {0};
+    LoadTilemap("tilemap.txt");
+
+
+    Actor p = {};
     {
-        p.pos = {400, 0};
-        p.size = {20, 20};
-        p.col = YELLOW;
+        p.pos = {1000, 400};
+        p.size = {11, 14};
+        p.lastDir = 1;
+        p.col = (Color){0xff, 0xff, 0x00, 50};
         p.aabb.max = p.pos + (p.size/2);
         p.aabb.min = p.pos - (p.size/2);
+        p.speed = 3;
+        p.jumpVel = -3;
+        p.maxJumps = 1;
+        p.lightShootDelay = 0.2;
+        p.heavyShootDelay = 0.5;
+
+        p.tex = LoadTexture("assets/player.png");
     }
 
     Camera2D camera;
     {
-        camera.zoom = 1;
+        camera.zoom = 4;
         camera.rotation = 0;
         camera.offset = {windowWidth / 2.f, windowHeight / 2.f};
         camera.target = {0};
     }
 
-    solids[solidCount++] = MakeSolid(640, 720, 1280, 200, GRAY, true);
-    solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
+    // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);
+    // solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
 
     double physicsAccumulator = 0;
     while (!WindowShouldClose())
@@ -45,25 +54,42 @@ int main(void)
         if (physicsAccumulator > physicsDTs)
         {
             physicsAccumulator -= physicsDTs;
-            PhysicsUpdate(&p, solids, solidCount);
+            double time = GetTime();
+            /*-----------------*/
+            BulletPhysicsProcess(dt);
+            PlayerPhysicsProcess(&p, solids, solidCount, time);
         }
         // Render update
         {
             CameraFollowActor(&camera, &p);
-            if (IsKeyPressed(KEY_SPACE)) p.pressedJump = true;
+            /* Checking for input for things like jumping always */
+            /* so that we get the most responsive movement */
+            if (IsKeyPressed(KEY_SPACE))
+            {
+                p.pressedJump = true;
+                p.timeLastJumpPressed = GetTime();
+            }
         }
         // Rendering
         BeginDrawing();
         {
             ClearBackground(BLUE);
-            DrawText(TextFormat("Players y velocity: %f", p.vel.y), 20, 20, 20, RED);
 
             BeginMode2D(camera);
             {
+                DrawTilemap(&p);
                 DrawSolids(solids, solidCount);
+                DrawBullets();
                 DrawActor(p);
             }
             EndMode2D();
+
+            // Debug info
+            DrawText(TextFormat("Players x velocity: %f", p.vel.x), 20, 20, 40, RED);
+            DrawText(TextFormat("Players pos: %f %f ", p.pos.x, p.pos.y), 20, 100, 40, RED);
+            DrawText(TextFormat("BulletCount: %d", bulletCount), 20, 60, 40, RED);
+            DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
+            DrawText(TextFormat("FPS: %f", 1/dt), 20, 280, 50, GREEN);
         }
         EndDrawing();
     }
