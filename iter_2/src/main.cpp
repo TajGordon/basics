@@ -18,9 +18,9 @@ int main(void)
 
     Actor p = {};
     {
-        p.pos = {1000, 400};
+        p.pos = player_spawnpoint;
         p.size = {11, 14};
-        p.lastDir = 1;
+        p.lastDir = {1, 0};
         p.col = (Color){0xff, 0xff, 0x00, 50};
         p.aabb.max = p.pos + (p.size/2);
         p.aabb.min = p.pos - (p.size/2);
@@ -37,7 +37,7 @@ int main(void)
     {
         camera.zoom = 4;
         camera.rotation = 0;
-        camera.offset = {windowWidth / 2.f, windowHeight / 2.f};
+        camera.offset = {windowWidth / 2.f, windowHeight / 2.f + 180};
         camera.target = {0};
     }
 
@@ -56,7 +56,7 @@ int main(void)
             physicsAccumulator -= physicsDTs;
             double time = GetTime();
             /*-----------------*/
-            BulletPhysicsProcess(dt);
+            BulletPhysicsProcess();
             PlayerPhysicsProcess(&p, solids, solidCount, time);
         }
         // Render update

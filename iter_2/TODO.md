@@ -1,9 +1,5 @@
 # TODO LIST
 
-[] __Shooting Ability__
-[] __Adjustable Parameters for Shooting Ability__
-[] __Shooting Ability can Break Walls__
-
 [] __Level map__
 [] __Equippable Battery Cells__
 
@@ -37,7 +33,14 @@
 [] __Health Battery__
 [] __Damage Battery__
 
- [X] __Coyote Time__
+[] __Fix Player Collisions__
+[] __Better Camera Movement__
+
+[X] __8 Directional Shooting__
+[X] __Shooting Ability__
+[X] __Adjustable Parameters for Shooting Ability__
+[X] __Shooting Ability can Break Walls__
+[X] __Coyote Time__
 [X] __Jump Buffer__
 [X] __Basic Movement__
 [X] __Texture Loading__

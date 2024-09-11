@@ -1,17 +1,12 @@
 #include "raylib.h"
+#include "raymath.h"
 #include "guplib.hpp"
 #include <cstdio>
 #include <malloc/_malloc.h>
+#include "math.h"
 /**************/
 /* MATH STUFF */
 /**************/
-bool AABBsColliding(AABB a, AABB b)
-{
-    if (a.max.x <= b.min.x || a.min.x >= b.max.x) return false;
-    if (a.max.y <= b.min.y || a.min.y >= b.max.y) return false;
-    return true;
-}
-
 Vector2 operator+(Vector2 v1, Vector2 v2)
 {
     return {v1.x + v2.x, v1.y + v2.y};
@@ -34,6 +29,22 @@ Color operator*(Color c, float f)
     return (Color){(unsigned char)(c.r * f), (unsigned char)(c.g * f), (unsigned char)(c.b * f), (unsigned char)(c.a * f)};
 }
 
+Vector2 vabs(Vector2 v)
+{
+    return {fabs(v.x), fabs(v.y)};
+}
+
+Vector2 vmax(Vector2 v1, Vector2 v2)
+{
+    return {fmax(v1.x, v2.x), fmax(v1.y, v2.y)};
+}
+
+bool AABBsColliding(AABB a, AABB b)
+{
+    if (a.max.x <= b.min.x || a.min.x >= b.max.x) return false;
+    if (a.max.y <= b.min.y || a.min.y >= b.max.y) return false;
+    return true;
+}
 /**********************/
 /* Constants and shit */
 /**********************/
@@ -55,7 +66,7 @@ typedef enum Tile
 Color tileColor[tilecount] =
 {
     BLANK,
-    BLACK,
+    DARKGRAY,
     GRAY,
 };
 
@@ -66,6 +77,8 @@ const int WORLD_SIZE_X = 200;
 const int WORLD_SIZE_Y = 100;
 
 Tile tilemap[WORLD_SIZE_X][WORLD_SIZE_Y] = {};
+
+Vector2 player_spawnpoint = {};
 
 void LoadTilemap(const char* path)
 {
@@ -79,10 +92,12 @@ void LoadTilemap(const char* path)
             fscanf(fp, " %c", &c);
             switch (c)
             {
+                case 'S':
+                    player_spawnpoint = {(float)x * TMSIZE, (float)y * TMSIZE};
                 case '.':
                     t = empty;
                     break;
-                case 'S':
+                case '#':
                     t = stone;
                     break;
                 case 'B':
@@ -112,6 +127,11 @@ void DrawTilemap(Actor* player)
             }
         }
     }
+}
+
+void BreakTile(int x, int y)
+{
+    tilemap[x][y] = empty;
 }
 
 /*****************/
@@ -164,7 +184,6 @@ void SpawnBullet(Bullet bulletType, float posx, float posy, float velx, float ve
     /* Temporary! */
     if (bulletCount == 199) bulletCount = 0;
 
-
     bulletsTs[bulletCount] = bulletType;
     bulletsPs[bulletCount] = {posx, posy};
     bulletsVs[bulletCount] = {velx, vely};
@@ -195,17 +214,51 @@ void DrawBullets()
     }
 }
 
-void BulletPhysicsProcess(float dt)
+void BulletPhysicsProcess()
 {
     // Move bullets
     for (int i = 0; i < bulletCount; i++)
     {
-        bulletsPs[i] = bulletsPs[i] + (bulletsVs[i] * dt);
+        bulletsPs[i] = bulletsPs[i] + (bulletsVs[i] * physicsDTs);
     }
 
     // Check bullets collision
     {
+        for (int i = 0; i < bulletCount; i++)
+        {
+            int minx = (bulletsPs[i].x / TMSIZE) - 1;
+            int miny = (bulletsPs[i].y / TMSIZE) - 1;
+            int maxx = (bulletsPs[i].x / TMSIZE) + 1;
+            int maxy = (bulletsPs[i].y / TMSIZE) + 1;
 
+            for (int y = miny; y <= maxy; y++)
+            {
+                for (int x = minx; x <= maxx; x++)
+                {
+                    if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
+                    {
+                        if (tilemap[x][y] != empty)
+                        {
+                            Rectangle trect = (Rectangle){(float)x * TMSIZE, (float)y * TMSIZE, TMSIZE, TMSIZE};
+                            if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], trect))
+                            {
+                                // colliding
+                                bulletsVs[i] = {};
+                                switch (tilemap[x][y])
+                                {
+                                    case breakable:
+                                        if (bulletsTs[i] == heavy) BreakTile(x, y);
+                                    case stone:
+                                        KillBullet(i);
+                                        break;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -248,25 +301,6 @@ bool ActorCollidingAt(Actor* a, Vector2 pos, Solid* solids, int solidCount)
                 }
             }
         }
-        // int minx = (a->aabb.min.x / TMSIZE) - 1;
-        // int miny = (a->aabb.min.y / TMSIZE) - 1;
-
-        // printf("\n");
-        // for (int y = miny; y <= a->aabb.max.y / TMSIZE; y++)
-        // {
-        //     for (int x = minx; x <= a->aabb.max.x / TMSIZE ; x++)
-        //     {
-        //         printf("Tilemap[%d][%d] = %d | ", x, y, tilemap[x][y]);
-        //         if (tilemap[x][y] != empty)
-        //         {
-        //             AABB taabb = {.min = (Vector2){(float)x * TMSIZE, (float)y * TMSIZE}, .max = (Vector2){(float)x * TMSIZE + TMSIZE, (float)y * TMSIZE + TMSIZE}};
-        //             if (AABBsColliding(aabb, taabb))
-        //             {
-        //                 return true;
-        //             }
-        //         }
-        //     }
-        // }
     }
     // Check if colliding with any solid in the scene, currently loosp over every solid
     for (int i = 0; i < solidCount; i++)
@@ -353,18 +387,23 @@ void PlayerInput(Actor* p, double time)
 
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && time - p->lastLightShot > p->lightShootDelay)
     {
-        SpawnBulletV(light, p->pos, {p->lastDir * bulletSpeed[light], 0});
+        Vector2 dir = (p->dir.x != 0 || p->dir.y != 0) ? p->dir : p->lastDir;
+        SpawnBulletV(light, p->pos, dir * bulletSpeed[light]);
         p->lastLightShot = time;
     }
     if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && time - p->lastHeavyShot > p->heavyShootDelay)
     {
-        SpawnBulletV(heavy, p->pos, {p->lastDir * bulletSpeed[heavy], 0});
+        Vector2 dir = (p->dir.x != 0 || p->dir.y != 0) ? p->dir : p->lastDir;
+        SpawnBulletV(heavy, p->pos + (Vector2){0,-1},  dir * bulletSpeed[heavy]);
         p->lastHeavyShot = time;
     }
 
-    int dir = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
-    if (dir != 0) p->lastDir = dir;
-    p->vel.x = dir * p->speed;
+    Vector2 dir = {};
+    dir.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
+    dir.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
+    if (dir.x != 0) p->lastDir = {dir.x, 0};
+    p->dir = dir;
+    p->vel.x = dir.x * p->speed;
 }
 
 void PlayerPhysicsProcess(Actor* p, Solid* solids, int solidCount, double time)

@@ -3,7 +3,6 @@
 
 #define Round(x) ((int)(x))
 #define Sign(x) (((x) < 0) ? -1 : 1)
-#define abs(x) (((x) < 0) ? -(x) : (x))
 
 typedef struct AABB
 {
@@ -20,7 +19,8 @@ typedef struct Actor
     float yRemainder;
 
     Vector2 vel;
-    int lastDir;
+    Vector2 dir;
+    Vector2 lastDir;
     float speed;
 
     float jumpVel;
