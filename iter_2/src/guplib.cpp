@@ -2,6 +2,7 @@
 #include "raymath.h"
 #include "guplib.hpp"
 #include <cstdio>
+#include <cstring>
 #include <malloc/_malloc.h>
 #include "math.h"
 /**************/
@@ -54,6 +55,60 @@ bool AABBsColliding(AABB a, AABB b)
 /**********************/
 const double physicsDTs = 1. / 60;
 
+#define MAX_DISPLAY_MESSAGES 100
+#define MAX_DISPLAYMESSAGE_SIZE 100
+#define DISPLAYMESSAGEFONTSIZE 5
+double displayMessagesTimers[MAX_DISPLAY_MESSAGES] = {};
+Vector2 displayMessagesPositions[MAX_DISPLAY_MESSAGES] = {};
+char displayMessages[MAX_DISPLAY_MESSAGES][MAX_DISPLAYMESSAGE_SIZE] = {};
+int displayMessagesCount = 0;
+
+void RenderDisplayMessages()
+{
+    for (int i = 0; i < displayMessagesCount; i++)
+    {
+        float offset = MeasureText(displayMessages[i], DISPLAYMESSAGEFONTSIZE) / 2.;
+        DrawText(displayMessages[i], displayMessagesPositions[i].x - offset, displayMessagesPositions[i].y, DISPLAYMESSAGEFONTSIZE, WHITE);
+    }
+}
+
+// goes in physics update because it does
+void TickDisplayMessagesTimers()
+{
+    for (int i = 0; i < displayMessagesCount; i++)
+    {
+        displayMessagesTimers[i] -= physicsDTs;
+        if (displayMessagesTimers[i] < 0.)
+        { // Remove the message
+            displayMessagesTimers[i] = displayMessagesTimers[displayMessagesCount];
+            displayMessagesPositions[i] = displayMessagesPositions[displayMessagesCount];
+            strcpy(displayMessages[i], displayMessages[displayMessagesCount]);
+        }
+    }
+}
+
+void AddDisplayMessage(Vector2 position, double durationSeconds, const char* message)
+{
+    if (displayMessagesCount < MAX_DISPLAY_MESSAGES)
+    {
+        displayMessagesTimers[displayMessagesCount] = durationSeconds;
+        displayMessagesPositions[displayMessagesCount] = position;
+        strncpy(displayMessages[displayMessagesCount], message, MAX_DISPLAYMESSAGE_SIZE - 1);
+        displayMessages[displayMessagesCount][MAX_DISPLAYMESSAGE_SIZE - 1] = '\0'; // adding a null terminator to the string
+        displayMessagesCount++;
+    }
+    else
+    {
+        printf("\033[1;31mError:\033[0m Display messages limit reached. Cannot add new message.\n");
+    }
+}
+
+/****************************/
+/* For putting in batteries */
+/****************************/
+bool showingMessage = false;
+
+
 /*****************/
 /* Battery Stuff */
 /*****************/
@@ -63,7 +118,7 @@ const double physicsDTs = 1. / 60;
 #define DOUBLEJUMPVEL -2
 
 #define NORMALSPEED 2
-#define QUICKIESPEED 4
+#define QUICKIESPEED 3
 
 float bulletDelays[bulletcount] =
 {
@@ -80,17 +135,20 @@ Texture batteryTextures[batterycount] =
 
 Vector2 batteryPositions[batterycount] = {};
 bool batteryInUse[batterycount] = {};
+bool batteryInDoor[batterycount] = {};
 bool batteryCanBePickedUp[batterycount] = {};
 
 void DropBattery(Player* p, Battery battery)
 {
+    #define BATTERYDROPOFFSET 4
     if (!batteryInUse[battery]) return;
     switch (battery)
     {
         case bigjump:
         {
             batteryInUse[bigjump] = false;
-            batteryPositions[bigjump] = p->pos;
+            batteryPositions[bigjump] = (Vector2){p->pos.x, p->pos.y - Round(TMSIZE / 2)};
+            printf("Dropped bigjump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -98,7 +156,8 @@ void DropBattery(Player* p, Battery battery)
         case doublejump:
         {
             batteryInUse[doublejump] = false;
-            batteryPositions[bigjump] = p->pos;
+            batteryPositions[doublejump] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            printf("Dropped doublejump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -106,7 +165,7 @@ void DropBattery(Player* p, Battery battery)
         case rapidfire:
         {
             batteryInUse[rapidfire] = false;
-            batteryPositions[rapidfire] = p->pos;
+            batteryPositions[rapidfire] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->shootDelay = bulletDelays[normalbullet];
             p->bullettype = normalbullet;
             break;
@@ -114,7 +173,7 @@ void DropBattery(Player* p, Battery battery)
         case heavyfire:
         {
             batteryInUse[heavyfire] = false;
-            batteryPositions[heavyfire] = p->pos;
+            batteryPositions[heavyfire] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->shootDelay = bulletDelays[normalbullet];
             p->bullettype = normalbullet;
             break;
@@ -122,14 +181,14 @@ void DropBattery(Player* p, Battery battery)
         case quickie:
         {
             batteryInUse[quickie] = false;
-            batteryPositions[quickie] = p->pos;
+            batteryPositions[quickie] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->speed = NORMALSPEED;
             break;
         }
         case tanky:
         {
             batteryInUse[tanky] = false;
-            batteryPositions[quickie] = p->pos;
+            batteryPositions[quickie] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->maxHealth = NORMALMAXHEALTH;
             break;
         }
@@ -142,55 +201,47 @@ void PickupBattery(Player* p, Battery battery)
     {
         case bigjump:
         {
+            if (batteryInUse[doublejump])
+            {
+                DropBattery(p, doublejump);
+            }
             batteryInUse[bigjump] = true;
             p->jumpVel = BIGJUMPVEL;
             p->maxJumps = 1;
-            // removal of conflicting one
-            if (batteryInUse[doublejump])
-            {
-                batteryInUse[doublejump] = false;
-                batteryPositions[doublejump] = p->pos;
-            }
             break;
         }
         case doublejump:
         {
+            if (batteryInUse[bigjump])
+            {
+                DropBattery(p, bigjump);
+            }
             batteryInUse[doublejump] = true;
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 2;
             p->canDoubleJump = true;
-            // removal of conflicting one
-            if (batteryInUse[bigjump])
-            {
-                batteryInUse[bigjump] = false;
-                batteryPositions[bigjump] = p->pos;
-            }
             break;
         }
         case rapidfire:
         {
+            if (batteryInUse[heavyfire])
+            {
+                DropBattery(p, heavyfire);
+            }
             batteryInUse[rapidfire] = true;
             p->shootDelay = bulletDelays[lightbullet];
             p->bullettype = lightbullet;
-            // removal of conflicting one
-            if (batteryInUse[heavyfire])
-            {
-                batteryInUse[heavyfire] = false;
-                batteryPositions[heavyfire] = p->pos;
-            }
             break;
         }
         case heavyfire:
         {
+            if (batteryInUse[rapidfire])
+            {
+                DropBattery(p, rapidfire);
+            }
             batteryInUse[heavyfire] = true;
             p->shootDelay = bulletDelays[heavybullet];
             p->bullettype = heavybullet;
-            // removal of conflicting one
-            if (batteryInUse[rapidfire])
-            {
-                batteryInUse[rapidfire] = false;
-                batteryPositions[rapidfire] = p->pos;
-            }
             break;
         }
         case quickie:
@@ -224,11 +275,12 @@ bool TileOnScreen(Vector2 tilepos, Camera2D camera)
     return !(tileMax.x < screenMin.x || tileMin.x > screenMax.x || tileMax.y < screenMin.y || tileMin.y > screenMax.y);
 }
 
-void DrawBatteries(Player* p, Camera2D camera)
+void DrawBatteries(Player* p, Camera2D camera, double time)
 {
+    bool batteryPickedUp = false;
     for (int i = bigjump; i < batterycount; i++)
     {
-        if (!batteryInUse[i])
+        if (!batteryInUse[i] && !batteryInDoor[i])
         {
             if (TileOnScreen(batteryPositions[i] / TMSIZE, camera))
             {
@@ -273,10 +325,17 @@ void DrawBatteries(Player* p, Camera2D camera)
                         break;
                     }
                 }
-                const char* string = TextFormat("Press 'E' to pickup %s battery", batteryname);
+                const char* string = TextFormat("Press 'E' to pickup %s battery\0", batteryname);
 
                 int stringsize = MeasureText(string, 10);
-                DrawText(string, batteryPositions[i].x - stringsize, batteryPositions[i].y - 20, 10, WHITE);
+                DrawText(string, batteryPositions[i].x - stringsize/2.f, batteryPositions[i].y - TMSIZE, 10, WHITE);
+
+                // We are showing the prompt to pickup the battery
+                if (IsKeyPressed(KEY_E) && !batteryPickedUp)
+                {
+                    PickupBattery(p, (Battery)i);
+                    batteryPickedUp = true;
+                }
             }
             else // if the battery is too far
             {
@@ -286,18 +345,244 @@ void DrawBatteries(Player* p, Camera2D camera)
     }
 }
 
+const int WORLD_SIZE_X = 200;
+const int WORLD_SIZE_Y = 100;
+
+Tile tilemap[WORLD_SIZE_X][WORLD_SIZE_Y] = {};
+/*********/
+/* Doors */
+/*********/
+#define MAXDOORS 50
+Vector2 doorStartPos[MAXDOORS] = {};
+Vector2 doorEndPos[MAXDOORS] = {};
+bool doorOpen[MAXDOORS] = {};
+Vector2 doorKeyPos[MAXDOORS] = {};
+bool doorKeyholeHasBattery[MAXDOORS] = {};
+Battery doorKeyholebattery[MAXDOORS] = {};
+int doorCount;
+
+Vector2 doorStartingLoadPositions[MAXDOORS] = {};
+int doorloadcount = 0;
+Vector2 doorStartingLoadKeyPositions[MAXDOORS] = {};
+int doorkeycount = 0;
+
+/* Door loading */
+void LoadDoors()
+{
+    if (doorkeycount != doorloadcount)
+    {
+        printf("\033[1;33mWARN:\033[0m Door key count does not match door count. Check your map file.\n");
+    }
+    doorCount = doorloadcount;
+    for (int i = 0; i < doorloadcount; i++)
+    {
+        doorStartPos[i] = doorStartingLoadPositions[i];
+        int numSpaces = 0;
+        Tile t = tilemap[(int)doorStartPos[i].x][(int)doorStartPos[i].y - 1];
+        while (tilemap[(int)doorStartPos[i].x][(int)doorStartPos[i].y - 1 - numSpaces] == empty)
+        {
+            numSpaces++;
+        }
+        doorEndPos[i] = {doorStartPos[i].x, doorStartPos[i].y - numSpaces};
+
+        // get key pos
+        Vector2 totheleft = doorStartPos[i] + (Vector2){-1, 0};
+        Vector2 totheright = doorStartPos[i] + (Vector2){1, 0};
+        for (int j = 0; j < doorkeycount; j++)
+        {
+            if (doorStartingLoadKeyPositions[j].x == totheleft.x && doorStartingLoadKeyPositions[j].y == totheleft.y)
+            {
+                doorKeyPos[i] = doorStartingLoadKeyPositions[j];
+                break;
+            }
+            if (doorStartingLoadKeyPositions[j].x == totheright.x && doorStartingLoadKeyPositions[j].y == totheright.y)
+            {
+                doorKeyPos[i] = doorStartingLoadKeyPositions[j];
+                break;
+            }
+        }
+    }
+}
+
+void PickupBatteryFromKeyhole(Player* p, int dooridx)
+{
+    Battery battery = doorKeyholebattery[dooridx];
+    PickupBattery(p, battery);
+    doorKeyholeHasBattery[dooridx] = false;
+}
+
+void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
+{
+    doorKeyholeHasBattery[dooridx] = true;
+    doorKeyholebattery[dooridx] = battery;
+    batteryInDoor[dooridx] = true;
+
+    switch (battery)
+    {
+        case bigjump:
+        {
+            batteryInUse[bigjump] = false;
+            batteryInDoor[bigjump] = true;
+            batteryPositions[bigjump] = (Vector2){p->pos.x, p->pos.y - Round(TMSIZE / 2)};
+            printf("Dropped bigjump battery\n");
+            p->jumpVel = NORMALJUMPVEL;
+            p->maxJumps = 1;
+            break;
+        }
+        case doublejump:
+        {
+            batteryInUse[doublejump] = false;
+            batteryInDoor[doublejump] = true;
+            batteryPositions[doublejump] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            printf("Dropped doublejump battery\n");
+            p->jumpVel = NORMALJUMPVEL;
+            p->maxJumps = 1;
+            break;
+        }
+        case rapidfire:
+        {
+            batteryInUse[rapidfire] = false;
+            batteryInDoor[rapidfire] = true;
+            batteryPositions[rapidfire] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->shootDelay = bulletDelays[normalbullet];
+            p->bullettype = normalbullet;
+            break;
+        }
+        case heavyfire:
+        {
+            batteryInUse[heavyfire] = false;
+            batteryInDoor[heavyfire] = true;
+            batteryPositions[heavyfire] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->shootDelay = bulletDelays[normalbullet];
+            p->bullettype = normalbullet;
+            break;
+        }
+        case quickie:
+        {
+            batteryInUse[quickie] = false;
+            batteryInDoor[quickie] = true;
+            batteryPositions[quickie] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->speed = NORMALSPEED;
+            break;
+        }
+        case tanky:
+        {
+            batteryInUse[tanky] = false;
+            batteryInDoor[tanky] = true;
+            batteryPositions[quickie] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->maxHealth = NORMALMAXHEALTH;
+            break;
+        }
+    }
+}
+
+void RenderDoors(Camera2D camera, Player* p)
+{
+    bool didSomething = false;
+    for (int i = 0; i < doorCount; i++)
+    {
+        doorOpen[i] = doorKeyholeHasBattery[i]; // cbf to find and replace
+        // door itself
+        if (TileOnScreen(doorStartPos[i], camera)) {
+            Color doorColor = doorOpen[i] ? GREEN : RED;
+            #define DOORTHICKNESS 4
+            DrawLineEx(doorStartPos[i] * TMSIZE + (Vector2){DOORTHICKNESS/2., TMSIZE}, doorEndPos[i] * TMSIZE + (Vector2){DOORTHICKNESS/2., 0}, DOORTHICKNESS, doorColor);
+        }
+        // keyhole
+        if (TileOnScreen(doorKeyPos[i], camera))
+        {
+            DrawRectangleV(doorKeyPos[i] * TMSIZE, {8, 12}, LIGHTGRAY);
+
+            if (Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
+            {
+                if (!doorKeyholeHasBattery[i]) // if no battery already in
+                {
+                    if (showingMessage)
+                    {
+                        #define INSERTBATTERYFONTSIZE 10
+                        const char* text = "Press a key to insert a battery: ";
+                        if (batteryInUse[bigjump]) text = TextFormat("%s'1' bigjump ", text);
+                        if (batteryInUse[doublejump]) text = TextFormat("%s'2' doublejump ", text);
+                        if (batteryInUse[rapidfire]) text = TextFormat("%s'3' rapidfire ", text);
+                        if (batteryInUse[heavyfire]) text = TextFormat("%s'4' heavyfire ", text);
+                        if (batteryInUse[quickie]) text = TextFormat("%s'5' quickie ", text);
+                        if (batteryInUse[tanky]) text = TextFormat("%s'6' tanky ", text);
+                        int atleastone = (batteryInUse[bigjump] || batteryInUse[doublejump] || batteryInUse[rapidfire] || batteryInUse[heavyfire] || batteryInUse[quickie] || batteryInUse[tanky]);
+                        if (!atleastone) text = "You need a battery to do this!";
+                        int offset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
+                        DrawText(text, doorKeyPos[i].x * TMSIZE - offset, doorKeyPos[i].y * TMSIZE - TMSIZE, INSERTBATTERYFONTSIZE, WHITE);
+
+                        if (atleastone)
+                        {
+                            if (IsKeyPressed(KEY_ONE) && batteryInUse[bigjump]) {
+                                PlaceBatteryIntoKeyhole(p, bigjump, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                            else if (IsKeyPressed(KEY_TWO) && batteryInUse[doublejump]) {
+                                PlaceBatteryIntoKeyhole(p, doublejump, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                            else if (IsKeyPressed(KEY_THREE) && batteryInUse[rapidfire]) {
+                                PlaceBatteryIntoKeyhole(p, rapidfire, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                            else if (IsKeyPressed(KEY_FOUR) && batteryInUse[heavyfire]) {
+                                PlaceBatteryIntoKeyhole(p, heavyfire, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                            else if (IsKeyPressed(KEY_FIVE) && batteryInUse[quickie]) {
+                                PlaceBatteryIntoKeyhole(p, quickie, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                            else if (IsKeyPressed(KEY_SIX) && batteryInUse[tanky]) {
+                                PlaceBatteryIntoKeyhole(p, tanky, i);
+                                showingMessage = false;
+                                didSomething = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        const char* string = "Press E to place battery\0";
+                        int stringsize = MeasureText(string, 10);
+                        DrawText(string, doorKeyPos[i].x*TMSIZE - stringsize/2.f, doorKeyPos[i].y*TMSIZE - TMSIZE, 10, WHITE);
+
+                        if (IsKeyPressed(KEY_E) && !didSomething && !showingMessage)
+                        {
+                            showingMessage = true;
+                            didSomething = true;
+                        }
+                    }
+                }
+                else // has a battery already, we need to have option to remove
+                {
+                    const char* string = "Press E to pickup battery\0";
+                    int stringsize = MeasureText(string, 10);
+                    DrawText(string, doorKeyPos[i].x *TMSIZE - stringsize/2.f, doorKeyPos[i].y*TMSIZE - TMSIZE, 10, WHITE);
+
+                    if (IsKeyPressed(KEY_E) && !didSomething)
+                    {
+                        PickupBatteryFromKeyhole(p, i);
+                        didSomething = true;
+                    }
+                }
+            }
+            else if (showingMessage)
+            {
+                showingMessage = false;
+            }
+        }
+    }
+}
 
 /***********/
 /* Tilemap */
 /***********/
- typedef enum Tile
-{
-    empty,
-    stone,
-    breakable,
-    tilecount,
-} Tile;
-
 Color tileColor[tilecount] =
 {
     BLANK,
@@ -305,13 +590,18 @@ Color tileColor[tilecount] =
     GRAY,
 };
 
+Texture tileTex[tilecount] = {};
+
+void LoadTileTextures()
+{
+    tileTex[stone] = LoadTexture("assets/stone.png");
+    tileTex[breakable] = LoadTexture("assets/breakable.png");
+    tileTex[spike] = LoadTexture("assets/spike.png");
+}
+
 #define windowWidth 1280
 #define windowHeight 720
 
-const int WORLD_SIZE_X = 200;
-const int WORLD_SIZE_Y = 100;
-
-Tile tilemap[WORLD_SIZE_X][WORLD_SIZE_Y] = {};
 
 Vector2 player_spawnpoint = {};
 
@@ -322,34 +612,78 @@ void LoadTilemap(const char* path)
     {
         for (int x = 0; x < WORLD_SIZE_X; x++)
         {
-            Tile t;
+            Tile t = empty; // if an invalid character is given itl just be empty
             char c;
             fscanf(fp, " %c", &c);
             switch (c)
             {
                 case 'S':
+                {
                     player_spawnpoint = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                }
                 case '.':
+                {
                     t = empty;
                     break;
+                }
                 case '#':
+                {
                     t = stone;
                     break;
+                }
                 case 'B':
+                {
                     t = breakable;
                     break;
+                }
+                case '^':
+                {
+                    t = spike;
+                    break;
+                }
+                case 'D':
+                {
+                    // door
+                    doorStartingLoadPositions[doorloadcount++] = (Vector2){(float)x, (float)y};
+                    break;
+                }
+                case 'k':
+                {
+                    // key
+                    doorStartingLoadKeyPositions[doorkeycount++] = {(float)x, (float)y};
+                    break;
+                }
                 case '0': // bigjump
+                {
                     batteryPositions[0] = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
+                }
                 case '1': // doublejump
+                {
                     batteryPositions[1] = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
+                }
                 case '2': // rapidfire
+                {
                     batteryPositions[2] = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
+                }
                 case '3': // heavyfire
+                {
                     batteryPositions[3] = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
+                }
+                case '4': // quickie
+                {
+                    batteryPositions[4] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                }
+                case '5': // tanky
+                {
+                    batteryPositions[5] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                }
             }
             tilemap[x][y] = t;
         }
@@ -370,7 +704,7 @@ void DrawTilemap(Player* player)
         {
             if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
             {
-                DrawRectangle(x * TMSIZE, y * TMSIZE, TMSIZE, TMSIZE, tileColor[tilemap[x][y]]);
+                DrawTexture(tileTex[tilemap[x][y]], x * TMSIZE, y * TMSIZE, WHITE);
             }
         }
     }
@@ -407,8 +741,8 @@ void SetBulletDamages()
     float heavybulletdps = 10;
     // bulletDamage[normalbullet] = normalbulletdps * bulletDelays[normalbullet];
     bulletDamage[normalbullet] = 2; // fuck the other shit
-    bulletDamage[lightbullet] = lightbulletdps * bulletDelays[lightbullet];
-    bulletDamage[heavybullet] = heavybulletdps * bulletDelays[heavybullet];
+    bulletDamage[lightbullet] = (int)(lightbulletdps * bulletDelays[lightbullet]);
+    bulletDamage[heavybullet] = (int)(heavybulletdps * bulletDelays[heavybullet]);
     printf("normalbullet damage = %f\n", bulletDamage[normalbullet]);
     printf("lightbullet damage = %f\n", bulletDamage[lightbullet]);
     printf("heavybullet damage = %f\n", bulletDamage[heavybullet]);
@@ -483,6 +817,7 @@ void BulletPhysicsProcess()
     {
         for (int i = 0; i < bulletCount; i++)
         {
+            // tilemap collisions
             int minx = (bulletsPs[i].x / TMSIZE) - 1;
             int miny = (bulletsPs[i].y / TMSIZE) - 1;
             int maxx = (bulletsPs[i].x / TMSIZE) + 1;
@@ -512,6 +847,20 @@ void BulletPhysicsProcess()
                                 break;
                             }
                         }
+                    }
+                }
+            }
+
+            // door collisions
+            for (int j = 0; j < doorCount; j++)
+            {
+                if (!doorOpen[j])
+                {
+                    Rectangle doorRect = (Rectangle){doorStartPos[j].x * TMSIZE, doorEndPos[j].y * TMSIZE, DOORTHICKNESS, (doorStartPos[j].y - doorEndPos[j].y) * TMSIZE + TMSIZE};
+                    if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], doorRect))
+                    {
+                        KillBullet(i);
+                        break;
                     }
                 }
             }
@@ -568,6 +917,21 @@ bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
             return true;
         }
     }
+
+    // Check if colliding with any door
+    // collisiondoor
+    for (int j = 0; j < doorCount; j++)
+    {
+        if (!doorOpen[j])
+        {
+            AABB daabb = {.min = doorEndPos[j] * TMSIZE, .max = doorStartPos[j] * TMSIZE + (Vector2){DOORTHICKNESS, TMSIZE}};
+            if (AABBsColliding(aabb, daabb))
+            {
+                return true;
+            }
+        }
+    }
+
     return false;
 }
 

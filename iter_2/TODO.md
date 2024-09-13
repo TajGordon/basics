@@ -14,12 +14,6 @@
 [] __Dying__
 [] __Spikes / Traps__
 
-[] __Toggleable Doors__
-[] __Doors Powered by Batteries__
-### For stuff like puzzles, or for bosses, so that you have to pick abilities
-
-[] __Putting Battery in Door (or other slot) Removes it from Player__
-
 [] __Ship that causes you to Win the Game__
 [] __Ability to Place Batteries in the Ship__
 
@@ -31,8 +25,6 @@
 ### This could give the dash ability
 ### Needed to repair the ship
 
-[] __Movement Speed Battery__
-[] __Health Battery__
 # This is like berserker, less hp, but more atk and spd
 [] __Overdrive battery__
 
@@ -42,11 +34,20 @@
 
 ### COMPLETED!!!
 
+
+[X] __Toggleable Doors__
+[X] __Doors Powered by Batteries__
+### For stuff like puzzles, or for bosses, so that you have to pick abilities
+
+[X] __Putting Battery in Door (or other slot) Removes it from Player__
 [X] __Different Battery Types__
 [X] __Double Jump Battery__
 [X] __Bigger Jump Battery__
 ### The double jump is needed for some jumps, like where you need to jump long over a gap
 ### The bigger jump is needed for some jumps, because it has a higher max height
+
+[X] __Movement Speed Battery__
+[X] __Health Battery__
 
 [X] __Big Bullets Battery__
 [X] __Rapid-Fire Battery__

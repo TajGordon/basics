@@ -14,7 +14,9 @@ int main(void)
     Solid* solids = (Solid*)malloc(sizeof(Solid) * MAX_SOLID_COUNT);
     int solidCount = 0;
 
-    LoadTilemap("tilemap.txt");
+    LoadTilemap("devtilemap.txt");
+    LoadDoors();
+    LoadTileTextures();
 
     SetBulletDamages();
 
@@ -56,11 +58,12 @@ int main(void)
         physicsAccumulator += dt;
 
         // Physics update
+        double time = GetTime();
         if (physicsAccumulator > physicsDTs)
         {
             physicsAccumulator -= physicsDTs;
-            double time = GetTime();
             /*-----------------*/
+            TickDisplayMessagesTimers();
             BulletPhysicsProcess();
             PlayerPhysicsProcess(&p, solids, solidCount, time);
         }
@@ -84,7 +87,9 @@ int main(void)
             {
                 DrawTilemap(&p);
                 DrawSolids(solids, solidCount);
-                DrawBatteries(&p, camera);
+                DrawBatteries(&p, camera, time);
+                RenderDoors(camera, &p);
+                RenderDisplayMessages();
                 DrawBullets();
                 DrawPlayer(p);
             }

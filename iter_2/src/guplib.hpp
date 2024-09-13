@@ -10,6 +10,16 @@ typedef struct AABB
     Vector2 max;
 } AABB;
 
+typedef enum Tile
+{
+   empty,
+   stone,
+   breakable,
+   spike,
+   tilecount,
+} Tile;
+
+
 typedef enum Battery
 {
     bigjump,
@@ -79,6 +89,12 @@ typedef struct Player
     int maxHealth; // so we can modify it with effects
     #define NORMALMAXHEALTH 100
     // dont need a bool alive; cuz we can just do if health < 1
+
+
+    // battery shit
+    // bool triedToPickupBattery;
+    // Battery batteryToPickup;
+    double lastPickedupBattery;
 
     /* Rendering stuff */
     Color col;
