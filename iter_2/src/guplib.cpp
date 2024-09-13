@@ -23,6 +23,10 @@ Vector2 operator/(Vector2 v, float f)
 {
     return {v.x / f, v.y / f};
 }
+Vector2 operator+(Vector2 v, float f)
+{
+    return {v.x + f, v.y + f};
+}
 
 Color operator*(Color c, float f)
 {
@@ -46,16 +50,247 @@ bool AABBsColliding(AABB a, AABB b)
     return true;
 }
 /**********************/
-/* Constants and shit */
+/* Constants and shit */ // did not get fucking used at all lmao
 /**********************/
 const double physicsDTs = 1. / 60;
+
+/*****************/
+/* Battery Stuff */
+/*****************/
+// jump velocity needs to be negative retard
+#define BIGJUMPVEL -4
+#define NORMALJUMPVEL -3
+#define DOUBLEJUMPVEL -2
+
+#define NORMALSPEED 2
+#define QUICKIESPEED 4
+
+float bulletDelays[bulletcount] =
+{
+    0,
+    0.1, // light
+    0.6, // heavy
+    0.3, // normal
+};
+
+Texture batteryTextures[batterycount] =
+{
+
+};
+
+Vector2 batteryPositions[batterycount] = {};
+bool batteryInUse[batterycount] = {};
+bool batteryCanBePickedUp[batterycount] = {};
+
+void DropBattery(Player* p, Battery battery)
+{
+    if (!batteryInUse[battery]) return;
+    switch (battery)
+    {
+        case bigjump:
+        {
+            batteryInUse[bigjump] = false;
+            batteryPositions[bigjump] = p->pos;
+            p->jumpVel = NORMALJUMPVEL;
+            p->maxJumps = 1;
+            break;
+        }
+        case doublejump:
+        {
+            batteryInUse[doublejump] = false;
+            batteryPositions[bigjump] = p->pos;
+            p->jumpVel = NORMALJUMPVEL;
+            p->maxJumps = 1;
+            break;
+        }
+        case rapidfire:
+        {
+            batteryInUse[rapidfire] = false;
+            batteryPositions[rapidfire] = p->pos;
+            p->shootDelay = bulletDelays[normalbullet];
+            p->bullettype = normalbullet;
+            break;
+        }
+        case heavyfire:
+        {
+            batteryInUse[heavyfire] = false;
+            batteryPositions[heavyfire] = p->pos;
+            p->shootDelay = bulletDelays[normalbullet];
+            p->bullettype = normalbullet;
+            break;
+        }
+        case quickie:
+        {
+            batteryInUse[quickie] = false;
+            batteryPositions[quickie] = p->pos;
+            p->speed = NORMALSPEED;
+            break;
+        }
+        case tanky:
+        {
+            batteryInUse[tanky] = false;
+            batteryPositions[quickie] = p->pos;
+            p->maxHealth = NORMALMAXHEALTH;
+            break;
+        }
+    }
+}
+
+void PickupBattery(Player* p, Battery battery)
+{
+    switch (battery)
+    {
+        case bigjump:
+        {
+            batteryInUse[bigjump] = true;
+            p->jumpVel = BIGJUMPVEL;
+            p->maxJumps = 1;
+            // removal of conflicting one
+            if (batteryInUse[doublejump])
+            {
+                batteryInUse[doublejump] = false;
+                batteryPositions[doublejump] = p->pos;
+            }
+            break;
+        }
+        case doublejump:
+        {
+            batteryInUse[doublejump] = true;
+            p->jumpVel = NORMALJUMPVEL;
+            p->maxJumps = 2;
+            p->canDoubleJump = true;
+            // removal of conflicting one
+            if (batteryInUse[bigjump])
+            {
+                batteryInUse[bigjump] = false;
+                batteryPositions[bigjump] = p->pos;
+            }
+            break;
+        }
+        case rapidfire:
+        {
+            batteryInUse[rapidfire] = true;
+            p->shootDelay = bulletDelays[lightbullet];
+            p->bullettype = lightbullet;
+            // removal of conflicting one
+            if (batteryInUse[heavyfire])
+            {
+                batteryInUse[heavyfire] = false;
+                batteryPositions[heavyfire] = p->pos;
+            }
+            break;
+        }
+        case heavyfire:
+        {
+            batteryInUse[heavyfire] = true;
+            p->shootDelay = bulletDelays[heavybullet];
+            p->bullettype = heavybullet;
+            // removal of conflicting one
+            if (batteryInUse[rapidfire])
+            {
+                batteryInUse[rapidfire] = false;
+                batteryPositions[rapidfire] = p->pos;
+            }
+            break;
+        }
+        case quickie:
+        {
+            batteryInUse[quickie] = true;
+            p->speed = QUICKIESPEED;
+            break;
+        }
+        case tanky:
+        {
+            batteryInUse[tanky] = true;
+            #define TANKYHEALTHFACTOR 1.2
+            // tankyhealthfactor = 1 + bonus max hp %
+            // set the hp to be in respect to the starting max health
+            // lets not add any other bonuses for now
+            p->maxHealth = NORMALMAXHEALTH * TANKYHEALTHFACTOR;
+            p->health = p->maxHealth;
+            break;
+        }
+    }
+}
+
+bool TileOnScreen(Vector2 tilepos, Camera2D camera)
+{
+    Vector2 screenMin = GetScreenToWorld2D((Vector2){0, 0}, camera);
+    Vector2 screenMax = GetScreenToWorld2D((Vector2){(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
+
+    Vector2 tileMin = tilepos * TMSIZE;
+    Vector2 tileMax = tileMin + TMSIZE;
+
+    return !(tileMax.x < screenMin.x || tileMin.x > screenMax.x || tileMax.y < screenMin.y || tileMin.y > screenMax.y);
+}
+
+void DrawBatteries(Player* p, Camera2D camera)
+{
+    for (int i = bigjump; i < batterycount; i++)
+    {
+        if (!batteryInUse[i])
+        {
+            if (TileOnScreen(batteryPositions[i] / TMSIZE, camera))
+            {
+                DrawTextureV(batteryTextures[i], batteryPositions[i], WHITE);
+                DrawRectangleV(batteryPositions[i], {5.f, 8.f}, LIGHTGRAY);
+            }
+            #define INTERACTION_DISTANCE 20
+            if (Vector2DistanceSqr(batteryPositions[i], p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
+            {
+                batteryCanBePickedUp[i] = true;
+                const char* batteryname;
+                switch (i)
+                {
+                    case bigjump:
+                    {
+                        batteryname = "bigjump";
+                        break;
+                    }
+                    case doublejump:
+                    {
+                        batteryname = "doublejump";
+                        break;
+                    }
+                    case rapidfire:
+                    {
+                        batteryname = "rapidfire";
+                        break;
+                    }
+                    case heavyfire:
+                    {
+                        batteryname = "heavyfire";
+                        break;
+                    }
+                    case quickie:
+                    {
+                        batteryname = "quickie";
+                        break;
+                    }
+                    case tanky:
+                    {
+                        batteryname = "tanky";
+                        break;
+                    }
+                }
+                const char* string = TextFormat("Press 'E' to pickup %s battery", batteryname);
+
+                int stringsize = MeasureText(string, 10);
+                DrawText(string, batteryPositions[i].x - stringsize, batteryPositions[i].y - 20, 10, WHITE);
+            }
+            else // if the battery is too far
+            {
+                batteryCanBePickedUp[i] = false;
+            }
+        }
+    }
+}
+
 
 /***********/
 /* Tilemap */
 /***********/
-const int TMSIZE = 16;
-
-typedef enum Tile
+ typedef enum Tile
 {
     empty,
     stone,
@@ -103,6 +338,18 @@ void LoadTilemap(const char* path)
                 case 'B':
                     t = breakable;
                     break;
+                case '0': // bigjump
+                    batteryPositions[0] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                case '1': // doublejump
+                    batteryPositions[1] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                case '2': // rapidfire
+                    batteryPositions[2] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                case '3': // heavyfire
+                    batteryPositions[3] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
             }
             tilemap[x][y] = t;
         }
@@ -110,7 +357,7 @@ void LoadTilemap(const char* path)
     fclose(fp);
 }
 
-void DrawTilemap(Actor* player)
+void DrawTilemap(Player* player)
 {
     int minx = (player->pos.x - windowWidth / 2) / TMSIZE;
     int maxx = (player->pos.x + windowWidth / 2) / TMSIZE;
@@ -137,19 +384,12 @@ void BreakTile(int x, int y)
 /*****************/
 /* Bullets stuff */
 /*****************/
-typedef enum Bullet
-{
-    none,
-    light,
-    heavy,
-    bulletcount
-} Bullet;
-
-float bulletRadius[bulletcount] =
+ float bulletRadius[bulletcount] =
 {
     0,
     2,
     6,
+    3,
 };
 
 float bulletDamage[bulletcount] =
@@ -157,12 +397,28 @@ float bulletDamage[bulletcount] =
     0,
     2,
     10,
+    3,
 };
+
+void SetBulletDamages()
+{
+    // float normalbulletdps = 3.5; idfk man
+    float lightbulletdps = 10;
+    float heavybulletdps = 10;
+    // bulletDamage[normalbullet] = normalbulletdps * bulletDelays[normalbullet];
+    bulletDamage[normalbullet] = 2; // fuck the other shit
+    bulletDamage[lightbullet] = lightbulletdps * bulletDelays[lightbullet];
+    bulletDamage[heavybullet] = heavybulletdps * bulletDelays[heavybullet];
+    printf("normalbullet damage = %f\n", bulletDamage[normalbullet]);
+    printf("lightbullet damage = %f\n", bulletDamage[lightbullet]);
+    printf("heavybullet damage = %f\n", bulletDamage[heavybullet]);
+}
 
 float bulletSpeed[bulletcount] =
 {
     0,
     500,
+    200,
     350,
 };
 
@@ -171,6 +427,7 @@ Color bulletColor[bulletcount] =
     BLANK,
     SKYBLUE,
     MAROON,
+    DARKBLUE,
 };
 
 #define MAX_BULLETS 200
@@ -247,7 +504,7 @@ void BulletPhysicsProcess()
                                 switch (tilemap[x][y])
                                 {
                                     case breakable:
-                                        if (bulletsTs[i] == heavy) BreakTile(x, y);
+                                        if (bulletsTs[i] == heavybullet) BreakTile(x, y);
                                     case stone:
                                         KillBullet(i);
                                         break;
@@ -263,17 +520,17 @@ void BulletPhysicsProcess()
 }
 
 /***************/
-/* Actor Stuff */
+/* Player Stuff */
 /***************/
 
 
-void DrawActor(Actor a)
+void DrawPlayer(Player a)
 {
     DrawTextureV(a.tex, a.pos - a.size/2, WHITE);
     DrawRectangleV(a.pos - (a.size / 2), a.size, a.col);
 }
 
-bool ActorCollidingAt(Actor* a, Vector2 pos, Solid* solids, int solidCount)
+bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
 {
     AABB aabb = {.max = pos + (a->size/2), .min = pos - (a->size/2)};
     // Check if colliding with the tilemap
@@ -314,7 +571,7 @@ bool ActorCollidingAt(Actor* a, Vector2 pos, Solid* solids, int solidCount)
     return false;
 }
 
-void MoveX(Actor* a, float amount, Solid* solids, int solidCount)
+void MoveX(Player* a, float amount, Solid* solids, int solidCount)
 {
     a->xRemainder += amount;
     int move = Round(a->xRemainder);
@@ -324,7 +581,7 @@ void MoveX(Actor* a, float amount, Solid* solids, int solidCount)
         int sign = Sign(move);
         while (move != 0)
         {
-            if (!ActorCollidingAt(a, {a->pos.x + sign, a->pos.y}, solids, solidCount))
+            if (!PlayerCollidingAt(a, {a->pos.x + sign, a->pos.y}, solids, solidCount))
             {
                 a->pos.x += sign;
                 move -= sign;
@@ -338,7 +595,7 @@ void MoveX(Actor* a, float amount, Solid* solids, int solidCount)
     }
 }
 
-void MoveY(Actor* a, float amount, Solid* solids, int solidCount)
+void MoveY(Player* a, float amount, Solid* solids, int solidCount)
 {
     a->yRemainder += amount;
     int move = Round(a->yRemainder);
@@ -348,7 +605,7 @@ void MoveY(Actor* a, float amount, Solid* solids, int solidCount)
         int sign = Sign(move);
         while (move != 0)
         {
-            if (!ActorCollidingAt(a, {a->pos.x, a->pos.y + sign}, solids, solidCount))
+            if (!PlayerCollidingAt(a, {a->pos.x, a->pos.y + sign}, solids, solidCount))
             {
                 a->pos.y += sign;
                 move -= sign;
@@ -368,7 +625,7 @@ void MoveY(Actor* a, float amount, Solid* solids, int solidCount)
 #define COYOTE_S 0.2
 #define JUMP_B_S 0.2
 
-void TryJump(Actor* p, double time)
+void TryJump(Player* p, double time)
 {
     if (p->pressedJump && p->jumpCount < p->maxJumps
     && (time - p->timeLastJumpPressed <= JUMP_B_S)
@@ -379,23 +636,29 @@ void TryJump(Actor* p, double time)
         p->jumpCount++;
         p->timeLastJumped = time;
     }
+    // Double jump check
+    else if (p->pressedJump && p->jumpCount < p->maxJumps
+    && (time - p->timeLastJumpPressed <= JUMP_B_S)
+    && !(time - p->timeLastOnGround <= COYOTE_S) // not-ing this makes it a check if we aren't on ground and can double jump
+    && p->canDoubleJump)
+    {
+        p->vel.y = p->doubleJumpVel;
+        p->pressedJump = false;
+        p->jumpCount++;
+        p->timeLastJumped = time;
+    }
 }
 
-void PlayerInput(Actor* p, double time)
+void PlayerInput(Player* p, double time)
 {
     TryJump(p, time);
 
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && time - p->lastLightShot > p->lightShootDelay)
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && time - p->lastShot > p->shootDelay)
     {
         Vector2 dir = (p->dir.x != 0 || p->dir.y != 0) ? p->dir : p->lastDir;
-        SpawnBulletV(light, p->pos, dir * bulletSpeed[light]);
-        p->lastLightShot = time;
-    }
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && time - p->lastHeavyShot > p->heavyShootDelay)
-    {
-        Vector2 dir = (p->dir.x != 0 || p->dir.y != 0) ? p->dir : p->lastDir;
-        SpawnBulletV(heavy, p->pos + (Vector2){0,-1},  dir * bulletSpeed[heavy]);
-        p->lastHeavyShot = time;
+        dir = Vector2Normalize(dir);
+        SpawnBulletV(p->bullettype, p->pos, dir * bulletSpeed[p->bullettype]);
+        p->lastShot = time;
     }
 
     Vector2 dir = {};
@@ -406,7 +669,7 @@ void PlayerInput(Actor* p, double time)
     p->vel.x = dir.x * p->speed;
 }
 
-void PlayerPhysicsProcess(Actor* p, Solid* solids, int solidCount, double time)
+void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
 {
     // Still on Ground check
     {
@@ -414,7 +677,7 @@ void PlayerPhysicsProcess(Actor* p, Solid* solids, int solidCount, double time)
         // if we move down a bit, and aren't colliding, then we aren't grounded
         // if we move down a bit, are are oclliding, we're on the ground
         // instead of epsilon we need to do 1, since we have pixel movement
-        if (ActorCollidingAt(p, {p->pos.x, p->pos.y + 1}, solids, solidCount))
+        if (PlayerCollidingAt(p, {p->pos.x, p->pos.y + 1}, solids, solidCount))
         {
             p->grounded = true;
             p->timeLastOnGround = time;
@@ -451,7 +714,7 @@ void PlayerPhysicsProcess(Actor* p, Solid* solids, int solidCount, double time)
     MoveY(p, p->vel.y, solids, solidCount);
 }
 
-Actor** GetRidingActors(Solid* s)
+Player** GetRidingPlayers(Solid* s)
 {
     return 0;
 }
@@ -467,7 +730,7 @@ void Move(Solid* s, float x, float y)
         s->collideable = false;
 
         int riderCount = 0;
-        Actor** riders = GetRidingActors(s);
+        Player** riders = GetRidingPlayers(s);
 
         if (moveX != 0)
         {
@@ -515,7 +778,7 @@ Solid MakeSolid(float x, float y, float width, float height, Color color, bool c
     return s;
 }
 
-void CameraFollowActor(Camera2D* camera, Actor* a)
+void CameraFollowPlayer(Camera2D* camera, Player* a)
 {
     camera->target = a->pos;
 }

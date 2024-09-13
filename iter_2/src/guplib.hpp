@@ -10,7 +10,37 @@ typedef struct AABB
     Vector2 max;
 } AABB;
 
-typedef struct Actor
+typedef enum Battery
+{
+    bigjump,
+    doublejump,
+    rapidfire,
+    heavyfire,
+    quickie,
+    tanky,
+    // overdrive, // damage up , move speed up, health down, IMPLEMENT LATER
+    batterycount
+} Battery;
+
+typedef enum Bullet
+{
+    none,
+    lightbullet,
+    heavybullet,
+    normalbullet,
+    bulletcount
+} Bullet;
+
+#define TMSIZE 16
+
+/* Slots */
+/* leg slot 1*/
+/* gun slot 2*/
+/* chest slot 3*/
+/* helmet slot 4*/
+/* core slot (for final battery) 5*/
+#define BATTERYSLOTS 5
+typedef struct Player
 {
     Vector2 pos;
     Vector2 size;
@@ -24,6 +54,7 @@ typedef struct Actor
     float speed;
 
     float jumpVel;
+    float doubleJumpVel;
 
     bool grounded;
     bool pressedJump;
@@ -34,17 +65,25 @@ typedef struct Actor
     double timeLastJumped;
     int jumpCount;
     int maxJumps;
+    bool canDoubleJump;
 
-    double lastLightShot;
-    double lastHeavyShot;
+    double lastShot;
+    double shootDelay;
 
-    float lightShootDelay;
-    float heavyShootDelay;
+    Bullet bullettype;
+
+    /* Enemy stuff */
+    int score;
+
+    int health;
+    int maxHealth; // so we can modify it with effects
+    #define NORMALMAXHEALTH 100
+    // dont need a bool alive; cuz we can just do if health < 1
 
     /* Rendering stuff */
     Color col;
     Texture2D tex;
-} Actor;
+} Player;
 
 typedef struct Solid
 {

@@ -1,3 +1,4 @@
+#include "guplib.hpp"
 #include "raylib.h"
 #include "guplib.cpp"
 #include <ctime>
@@ -15,8 +16,9 @@ int main(void)
 
     LoadTilemap("tilemap.txt");
 
+    SetBulletDamages();
 
-    Actor p = {};
+    Player p = {};
     {
         p.pos = player_spawnpoint;
         p.size = {11, 14};
@@ -24,11 +26,14 @@ int main(void)
         p.col = (Color){0xff, 0xff, 0x00, 50};
         p.aabb.max = p.pos + (p.size/2);
         p.aabb.min = p.pos - (p.size/2);
-        p.speed = 3;
+        p.speed = NORMALSPEED;
         p.jumpVel = -3;
+        p.doubleJumpVel = DOUBLEJUMPVEL;
         p.maxJumps = 1;
-        p.lightShootDelay = 0.2;
-        p.heavyShootDelay = 0.5;
+        p.bullettype = normalbullet; // none = normal
+        p.shootDelay = bulletDelays[p.bullettype];
+        p.maxHealth = NORMALMAXHEALTH;
+        p.health = p.maxHealth;
 
         p.tex = LoadTexture("assets/player.png");
     }
@@ -61,7 +66,7 @@ int main(void)
         }
         // Render update
         {
-            CameraFollowActor(&camera, &p);
+            CameraFollowPlayer(&camera, &p);
             /* Checking for input for things like jumping always */
             /* so that we get the most responsive movement */
             if (IsKeyPressed(KEY_SPACE))
@@ -79,8 +84,9 @@ int main(void)
             {
                 DrawTilemap(&p);
                 DrawSolids(solids, solidCount);
+                DrawBatteries(&p, camera);
                 DrawBullets();
-                DrawActor(p);
+                DrawPlayer(p);
             }
             EndMode2D();
 
