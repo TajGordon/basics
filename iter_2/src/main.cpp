@@ -36,6 +36,7 @@ int main(void)
         p.shootDelay = bulletDelays[p.bullettype];
         p.maxHealth = NORMALMAXHEALTH;
         p.health = p.maxHealth;
+        p.tint = WHITE;
 
         p.tex = LoadTexture("assets/player.png");
     }

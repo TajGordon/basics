@@ -352,7 +352,7 @@ Tile tilemap[WORLD_SIZE_X][WORLD_SIZE_Y] = {};
 /*********/
 /* Doors */
 /*********/
-#define MAXDOORS 50
+#define MAXDOORS 100
 Vector2 doorStartPos[MAXDOORS] = {};
 Vector2 doorEndPos[MAXDOORS] = {};
 bool doorOpen[MAXDOORS] = {};
@@ -378,7 +378,6 @@ void LoadDoors()
     {
         doorStartPos[i] = doorStartingLoadPositions[i];
         int numSpaces = 0;
-        Tile t = tilemap[(int)doorStartPos[i].x][(int)doorStartPos[i].y - 1];
         while (tilemap[(int)doorStartPos[i].x][(int)doorStartPos[i].y - 1 - numSpaces] == empty)
         {
             numSpaces++;
@@ -415,7 +414,7 @@ void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
 {
     doorKeyholeHasBattery[dooridx] = true;
     doorKeyholebattery[dooridx] = battery;
-    batteryInDoor[dooridx] = true;
+    batteryInDoor[battery] = true;
 
     switch (battery)
     {
@@ -469,7 +468,7 @@ void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
         {
             batteryInUse[tanky] = false;
             batteryInDoor[tanky] = true;
-            batteryPositions[quickie] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            batteryPositions[tanky] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->maxHealth = NORMALMAXHEALTH;
             break;
         }
@@ -493,12 +492,13 @@ void RenderDoors(Camera2D camera, Player* p)
         {
             DrawRectangleV(doorKeyPos[i] * TMSIZE, {8, 12}, LIGHTGRAY);
 
-            if (Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
+            if (Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE) && !didSomething)
             {
                 if (!doorKeyholeHasBattery[i]) // if no battery already in
                 {
                     if (showingMessage)
                     {
+                        printf("Showingmessage = true\n");
                         #define INSERTBATTERYFONTSIZE 10
                         const char* text = "Press a key to insert a battery: ";
                         if (batteryInUse[bigjump]) text = TextFormat("%s'1' bigjump ", text);
@@ -572,8 +572,17 @@ void RenderDoors(Camera2D camera, Player* p)
                     }
                 }
             }
-            else if (showingMessage)
+            else if (showingMessage && !didSomething)
             {
+                // whenever there are 2 doors on the screen at once
+                // it freaks out, ig because its pressing for both at once? or maybe it counting it as outside range of one?
+                printf("distance squared = %f\n", Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos));
+                printf("doorkeypos: %f %f\n", doorKeyPos[i].x, doorKeyPos[i].y);
+                printf("doorkeypos * TMSIZE: %f %f\n", doorKeyPos[i].x * TMSIZE, doorKeyPos[i].y * TMSIZE);
+                printf("Player pos %f %f\n", p->pos.x, p->pos.y);
+                printf("i: %d\n", i);
+                DrawText("SOME FUCKING TEXT WHICH MEANS NO GOOD!", doorKeyPos[i].x, doorKeyPos[i].y, 10, PINK);
+                printf("Setting showingmessage to false  \n");
                 showingMessage = false;
             }
         }
@@ -651,7 +660,7 @@ void LoadTilemap(const char* path)
                 case 'k':
                 {
                     // key
-                    doorStartingLoadKeyPositions[doorkeycount++] = {(float)x, (float)y};
+                    doorStartingLoadKeyPositions[doorkeycount++] = (Vector2){(float)x, (float)y};
                     break;
                 }
                 case '0': // bigjump
@@ -871,11 +880,9 @@ void BulletPhysicsProcess()
 /***************/
 /* Player Stuff */
 /***************/
-
-
 void DrawPlayer(Player a)
 {
-    DrawTextureV(a.tex, a.pos - a.size/2, WHITE);
+    DrawTextureV(a.tex, a.pos - a.size/2, a.tint);
     DrawRectangleV(a.pos - (a.size / 2), a.size, a.col);
 }
 
@@ -901,6 +908,8 @@ bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
                         AABB taabb = {.min = (Vector2){(float)x * TMSIZE, (float)y * TMSIZE}, .max = (Vector2){(float)x * TMSIZE + TMSIZE, (float)y * TMSIZE + TMSIZE}};
                         if (AABBsColliding(aabb, taabb))
                         {
+                            if (tilemap[x][y] == spike)
+                            { a->standingOnSpike = true; }
                             return true;
                         }
                     }
@@ -1035,6 +1044,7 @@ void PlayerInput(Player* p, double time)
 
 void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
 {
+    p->standingOnSpike = false;
     // Still on Ground check
     {
         // if we move the player down EPSILON, would they be colliding? if so, they're on ground
@@ -1073,6 +1083,35 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     }
 
     PlayerInput(p, time);
+
+    // Spike standing logic
+    {
+        if (p->standingOnSpike && time - p->lastspikehit > SPIKEHITCOOLDOWN - EPSILON)
+        {
+            bool goright = rand() % 2; // 0 or 1
+            int dir = (goright) ? 1 : -1;
+            #define SPIKEUPVEL -4
+            #define SPIKESIDEVEL 1
+            #define SPIKEDAMAGE 25
+            p->vel.y = SPIKEUPVEL;
+            p->vel.x = SPIKESIDEVEL * dir;
+            p->health -= SPIKEDAMAGE;
+            p->lastspikehit = time;
+            p->lasthittaken = time;
+        }
+    }
+    // Hit-taking logic
+    {
+        if (time - p->lasthittaken < DAMAGETINTDURATION)
+        {
+            double timeleft = DAMAGETINTDURATION - (time - p->lasthittaken);
+            p->tint = (Color){(unsigned char)(255 * timeleft * 10), 0, 0, 0xff};
+        }
+        else // if the damage tint duration is done
+        {
+            p->tint = WHITE;
+        }
+    }
 
     MoveX(p, p->vel.x, solids, solidCount);
     MoveY(p, p->vel.y, solids, solidCount);

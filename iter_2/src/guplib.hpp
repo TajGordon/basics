@@ -69,6 +69,7 @@ typedef struct Player
     bool grounded;
     bool pressedJump;
 
+
     double timeLastOnGround;
     double timeLastJumpPressed;
 
@@ -84,6 +85,14 @@ typedef struct Player
 
     /* Enemy stuff */
     int score;
+
+    bool standingOnSpike;
+    #define SPIKEHITCOOLDOWN 1
+    double lastspikehit;
+
+    #define DAMAGETINTDURATION 0.5
+    double lasthittaken;
+    Color tint;
 
     int health;
     int maxHealth; // so we can modify it with effects
