@@ -107,6 +107,7 @@ void AddDisplayMessage(Vector2 position, double durationSeconds, const char* mes
 /* For putting in batteries */
 /****************************/
 bool showingMessage = false;
+int showingMessageIndex = 0;
 
 
 /*****************/
@@ -555,6 +556,7 @@ void RenderDoors(Camera2D camera, Player* p)
                         if (IsKeyPressed(KEY_E) && !didSomething && !showingMessage)
                         {
                             showingMessage = true;
+                            showingMessageIndex = i;
                             didSomething = true;
                         }
                     }
@@ -572,17 +574,8 @@ void RenderDoors(Camera2D camera, Player* p)
                     }
                 }
             }
-            else if (showingMessage && !didSomething)
+            else if (showingMessage && showingMessageIndex == i && !didSomething)
             {
-                // whenever there are 2 doors on the screen at once
-                // it freaks out, ig because its pressing for both at once? or maybe it counting it as outside range of one?
-                printf("distance squared = %f\n", Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos));
-                printf("doorkeypos: %f %f\n", doorKeyPos[i].x, doorKeyPos[i].y);
-                printf("doorkeypos * TMSIZE: %f %f\n", doorKeyPos[i].x * TMSIZE, doorKeyPos[i].y * TMSIZE);
-                printf("Player pos %f %f\n", p->pos.x, p->pos.y);
-                printf("i: %d\n", i);
-                DrawText("SOME FUCKING TEXT WHICH MEANS NO GOOD!", doorKeyPos[i].x, doorKeyPos[i].y, 10, PINK);
-                printf("Setting showingmessage to false  \n");
                 showingMessage = false;
             }
         }
