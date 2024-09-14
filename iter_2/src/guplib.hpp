@@ -114,7 +114,8 @@ typedef struct Player
 
     /* Rendering stuff */
     Color col;
-    Texture2D tex;
+    Texture2D right_tex;
+    Texture2D left_tex;
 } Player;
 
 typedef struct Solid

@@ -1235,6 +1235,8 @@ int ReadTopScoreFromFile()
     fscanf(fp, "%d", &maxscore);
     fclose(fp);
     return 0;
+
+
 }
 
 int WriteTopScoreToFile()
@@ -1249,6 +1251,7 @@ int WriteTopScoreToFile()
     fclose(fp);
     return 0;
 }
+
 
 /***************/
 /* Player Stuff */
@@ -1266,10 +1269,14 @@ void PlayerDie(Player* p)
     }
 }
 
-void DrawPlayer(Player a)
+void DrawPlayer(Player p)
 {
-    DrawTextureV(a.tex, a.pos - a.size/2, a.tint);
-    DrawRectangleV(a.pos - (a.size / 2), a.size, a.col);
+    if (p.lastDir.x > 0)
+    { DrawTexture(p.right_tex, p.pos.x - p.size.x/2 - 4, p.pos.y - p.size.y/2 - 1, p.tint); }
+    else if (p.lastDir.x < 0)
+    { DrawTexture(p.left_tex, p.pos.x - p.size.x/2 - 3, p.pos.y - p.size.y/2 - 1, p.tint); }
+
+    DrawRectangleV(p.pos - (p.size / 2), p.size, p.col);
 }
 
 bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
@@ -1680,7 +1687,7 @@ void LoadGame()
 
     {
         p.pos = player_spawnpoint;
-        p.size = {11, 14};
+        p.size = {9, 15};
         p.lastDir = {1, 0};
         p.col = (Color){0xff, 0xff, 0x00, 50};
         p.aabb.max = p.pos + (p.size/2);
@@ -1695,7 +1702,8 @@ void LoadGame()
         p.health = p.maxHealth;
         p.tint = WHITE;
 
-        p.tex = LoadTexture("assets/player.png");
+        p.right_tex = LoadTexture("assets/player_right.png");
+        p.left_tex = LoadTexture("assets/player_left.png");
     }
 
     {

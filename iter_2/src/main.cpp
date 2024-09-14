@@ -13,14 +13,16 @@ int main(void)
     InitWindow(windowWidth, windowHeight, "drinkingbatteryacid.jfif");
     SetTargetFPS(120);
 
-    if (ReadTopScoreFromFile())
+    if (ReadTopScoreFromFile() == 1)
     {
         printf("\033[1;31mError: File pointer is NULL.\033[0m\n");
-        return 1;
     }
 
-    while (!WindowShouldClose())
+
+    bool exitWindow = 0;
+    while (!exitWindow)
     {
+        if (WindowShouldClose()) exitWindow = true;
         if (gamestate == running)
         {
             float dt = GetFrameTime();
@@ -85,7 +87,10 @@ int main(void)
                 gamestate = gameloadingscreen;
                 newtopscoreflag = 0;
             }
-
+            if (IsKeyPressed(KEY_C))
+            {
+                exitWindow = true;
+            }
 
             BeginDrawing();
             {
@@ -112,6 +117,10 @@ int main(void)
             {
                 LoadGame();
                 gamestate = running;
+            }
+            if (IsKeyPressed(KEY_C))
+            {
+                exitWindow = true;
             }
             BeginDrawing();
             {
