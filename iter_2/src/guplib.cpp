@@ -16,6 +16,10 @@ Vector2 operator-(Vector2 v1, Vector2 v2)
 {
     return {v1.x - v2.x, v1.y - v2.y};
 }
+Vector2 operator*(Vector2 v1, Vector2 v2)
+{
+    return {v1.x * v2.x, v1.y * v2.y};
+}
 Vector2 operator*(Vector2 v, float f)
 {
     return {v.x * f, v.y * f};
@@ -58,10 +62,14 @@ const double physicsDTs = 1. / 60;
 typedef enum Gamestate
 {
     running,
+    gameover,
+    gameloadingscreen,
     gamestatecount
 } Gamestate;
 
-Gamestate gamestate = running;
+int maxscore = 0;
+
+Gamestate gamestate = gameloadingscreen;
 
 #define MAX_DISPLAY_MESSAGES 100
 #define MAX_DISPLAYMESSAGE_SIZE 100
@@ -368,7 +376,7 @@ bool doorOpen[MAXDOORS] = {};
 Vector2 doorKeyPos[MAXDOORS] = {};
 bool doorKeyholeHasBattery[MAXDOORS] = {};
 Battery doorKeyholebattery[MAXDOORS] = {};
-int doorCount;
+int doorCount = 0;
 
 Vector2 doorStartingLoadPositions[MAXDOORS] = {};
 int doorloadcount = 0;
@@ -629,7 +637,14 @@ Color enemyColor[enemytypecount] =
     BLACK
 };
 
-#define ENEMYSPAWNCOOLDOWNSECONDS 5
+int enemyScore[enemytypecount] =
+{
+    100,
+    300,
+    1000,
+};
+
+#define ENEMYSPAWNCOOLDOWNSECONDS 300
 
 double enemySpawnTimers[MAX_ENEMIES] = {};
 
@@ -730,48 +745,8 @@ bool EnemyCollidingAt(int enemyidx, Vector2 pos, Solid* solids, int solidCount)
 }
 
 
-void EnemyPhysicsProcess(Solid* solids, int solidCount, double time)
+void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
 {
-    // Print all enemy arrays for debugging
-    printf("\n\n\n\n\n\n");
-    printf("Enemy Positions:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Position = (%f, %f)\n", i, enemyPositions[i].x, enemyPositions[i].y);
-    }
-    printf("Enemy Sizes:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Size = (%f, %f)\n", i, enemySize[enemyTypes[i]].x, enemySize[enemyTypes[i]].y);
-    }
-
-    printf("Enemy Directions:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
-    }
-
-    printf("Enemy Health:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Health = %d\n", i, enemyHealth[i]);
-    }
-
-    printf("Enemy Dead Status:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Dead = %d\n", i, enemyDead[i]);
-    }
-
-    printf("Enemy Types:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Type = %d\n", i, enemyTypes[i]);
-    }
-
-    printf("Enemy Spawn Timers:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Spawn Timer = %f\n", i, enemySpawnTimers[i]);
-    }
-
-    printf("Enemy Spawn Points:\n");
-    for (int i = 0; i < enemyCount; i++) {
-        printf("Enemy %d: Spawn Point = (%f, %f)\n", i, enemySpawnPoints[i].x, enemySpawnPoints[i].y);
-    }
     // Iterate through each enemy to process their physics
     for (int i = 0; i < enemyCount; i++)
     {
@@ -783,6 +758,8 @@ void EnemyPhysicsProcess(Solid* solids, int solidCount, double time)
             {
                 enemySpawnTimers[i] = ENEMYSPAWNCOOLDOWNSECONDS;
                 enemyDead[i] = true;
+                p->score += enemyScore[enemyTypes[i]];
+                AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
                 aliveEnemyCount--;
             }
 
@@ -798,6 +775,53 @@ void EnemyPhysicsProcess(Solid* solids, int solidCount, double time)
                 }
             }
 
+            // enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
+            // int moveX = Round(enemyMovementRemainders[i].x);
+            // if (moveX != 0)
+            // {
+            //     enemyMovementRemainders[i].x -= moveX;
+            //     int sign = Sign(moveX);
+            //     while (moveX != 0)
+            //     {
+            //         Vector2 newPos = enemyPositions[i] + (Vector2){(float)sign, 0};
+            //         if (!enemyFlying[i] && tilemap[(int)newPos.x / TMSIZE][(int)newPos.y / TMSIZE + 1] == spike)
+            //         {
+            //             enemyDirections[i] *= -1;
+            //             break;
+            //         }
+            //         if (!EnemyCollidingAt(i, newPos, solids, solidCount))
+            //         {
+            //             enemyPositions[i].x += sign;
+            //             moveX -= sign;
+            //         }
+            //         else
+            //         {
+            //             enemyDirections[i] *= -1;
+            //             break;
+            //         }
+            //     }
+            // }
+
+            // enemyMovementRemainders[i].y += enemySpeeds[enemyTypes[i]];
+            // int moveY = Round(enemyMovementRemainders[i].y);
+            // if (moveY != 0)
+            // {
+            //     enemyMovementRemainders[i].y -= moveY;
+            //     int sign = Sign(moveY);
+            //     while (moveY != 0)
+            //     {
+            //         Vector2 newPos = enemyPositions[i] + (Vector2){0, (float)sign};
+            //         if (!EnemyCollidingAt(i, newPos, solids, solidCount))
+            //         {
+            //             enemyPositions[i].y += sign;
+            //             moveY -= sign;
+            //         }
+            //         else
+            //         {
+            //             break;
+            //         }
+            //     }
+            // }
             enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
             int moveX = Round(enemyMovementRemainders[i].x);
             if (moveX != 0)
@@ -807,11 +831,6 @@ void EnemyPhysicsProcess(Solid* solids, int solidCount, double time)
                 while (moveX != 0)
                 {
                     Vector2 newPos = enemyPositions[i] + (Vector2){(float)sign, 0};
-                    if (!enemyFlying[i] && tilemap[(int)newPos.x / TMSIZE][(int)newPos.y / TMSIZE + 1] == spike)
-                    {
-                        enemyDirections[i] *= -1;
-                        break;
-                    }
                     if (!EnemyCollidingAt(i, newPos, solids, solidCount))
                     {
                         enemyPositions[i].x += sign;
@@ -844,6 +863,21 @@ void EnemyPhysicsProcess(Solid* solids, int solidCount, double time)
                         break;
                     }
                 }
+            }
+
+            // Push players out of the way
+
+            // Check if colliding with the player, if so, push the player
+            AABB enemyAABB = {.max = enemyPositions[i] + (enemySize[enemyTypes[i]] / 2), .min = enemyPositions[i] - (enemySize[enemyTypes[i]] / 2)};
+            AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
+            if (AABBsColliding(enemyAABB, playerAABB))
+            {
+                #define ENEMYHORIZONTALKNOCKBACKFORCE 5
+                #define ENEMYVERTICALKNOCKBACKFORCE 4
+                Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
+                p->damageimpulse = pushDir * 2;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
+                p->health -= enemyHealth[i]; // Adjust the damage as needed
+                p->lasthittaken = time;
             }
 
         }
@@ -1050,7 +1084,7 @@ void SetBulletDamages()
     // bulletDamage[normalbullet] = normalbulletdps * bulletDelays[normalbullet];
     bulletDamage[normalbullet] = 2; // fuck the other shit
     bulletDamage[lightbullet] = (int)(lightbulletdps * bulletDelays[lightbullet]);
-    bulletDamage[heavybullet] = (int)(heavybulletdps * bulletDelays[heavybullet]);
+    // bulletDamage[heavybullet] = (int)(heavybulletdps * bulletDelays[heavybullet]);
     printf("normalbullet damage = %f\n", bulletDamage[normalbullet]);
     printf("lightbullet damage = %f\n", bulletDamage[lightbullet]);
     printf("heavybullet damage = %f\n", bulletDamage[heavybullet]);
@@ -1172,13 +1206,66 @@ void BulletPhysicsProcess()
                     }
                 }
             }
+
+            // enemy collisions
+            for (int j = 0; j < enemyCount; j++)
+            {
+                if (!enemyDead[j])
+                {
+                    Rectangle enemyRect = {enemyPositions[j].x - enemySize[enemyTypes[j]].x / 2, enemyPositions[j].y - enemySize[enemyTypes[j]].y / 2, enemySize[enemyTypes[j]].x, enemySize[enemyTypes[j]].y};
+                    if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], enemyRect))
+                    {
+                        enemyHealth[j] -= bulletDamage[bulletsTs[i]];
+                        KillBullet(i);
+                        break;
+                    }
+                }
+            }
         }
     }
+}
+
+int ReadTopScoreFromFile()
+{
+    FILE* fp = fopen("topscores.txt", "r+");
+    if (fp == NULL)
+    {
+        return 1;
+    }
+    fscanf(fp, "%d", &maxscore);
+    fclose(fp);
+    return 0;
+}
+
+int WriteTopScoreToFile()
+{
+    FILE* fp = fopen("topscores.txt", "w+");
+    if (fp == NULL)
+    {
+        return 1;
+    }
+    fprintf(fp, "%d", maxscore);
+
+    fclose(fp);
+    return 0;
 }
 
 /***************/
 /* Player Stuff */
 /***************/
+bool newtopscoreflag = 0;
+
+void PlayerDie(Player* p)
+{
+    gamestate = gameover;
+    if (p->score > maxscore)
+    {
+        newtopscoreflag = 1;
+        maxscore = p->score;
+        printf("here\n");
+    }
+}
+
 void DrawPlayer(Player a)
 {
     DrawTextureV(a.tex, a.pos - a.size/2, a.tint);
@@ -1216,15 +1303,17 @@ bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
             }
         }
     }
+
     // Check if colliding with any solid in the scene, currently loosp over every solid
-    for (int i = 0; i < solidCount; i++)
-    {
-        Solid* s = &solids[i];
-        if (s->collideable && AABBsColliding(aabb, s->aabb))
-        {
-            return true;
-        }
-    }
+    // i dont have any fucking solids
+    // for (int i = 0; i < solidCount; i++)
+    // {
+    //     Solid* s = &solids[i];
+    //     if (s->collideable && AABBsColliding(aabb, s->aabb))
+    //     {
+    //         return true;
+    //     }
+    // }
 
     // Check if colliding with any door
     // collisiondoor
@@ -1347,7 +1436,7 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     {
         if (p->health < 1) // dead
         {
-
+            PlayerDie(p);
         }
         else // alive
         {
@@ -1425,8 +1514,11 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     }
     // Impulse logic (not actual impulse idk what that is)
     {
-        p->vel = p->vel + p->damageimpulse;
+        p->vel.x = p->vel.x + p->damageimpulse.x;
+        if (p->damageimpulse.y != 0) p->vel.y = p->damageimpulse.y;
         p->damageimpulse = p->damageimpulse - p->damageimpulse * physicsDTs;
+        if (p->damageimpulse.x < 0 + EPSILON) p->damageimpulse.x = 0;
+        if (p->damageimpulse.y < 0 + EPSILON) p->damageimpulse.y = 0;
     }
 
     MoveX(p, p->vel.x, solids, solidCount);
@@ -1500,4 +1592,120 @@ Solid MakeSolid(float x, float y, float width, float height, Color color, bool c
 void CameraFollowPlayer(Camera2D* camera, Player* a)
 {
     camera->target = a->pos;
+}
+
+Player p = {};
+Camera2D camera;
+double physicsAccumulator = 0;
+Solid* solids = (Solid*)malloc(sizeof(Solid) * MAX_SOLID_COUNT);
+int solidCount = 0;
+
+/****************/
+/* Game loading */
+/****************/
+void LoadGame()
+{
+    {
+        memset(&p, 0, sizeof(Player));
+        memset(&camera, 0, sizeof(Camera2D));
+        physicsAccumulator = 0;
+        memset(solids, 0, sizeof(Solid) * MAX_SOLID_COUNT);
+        solidCount = 0;
+
+        displayMessagesCount = 0;
+        showingMessageIndex = 0;
+        showingMessage = false;
+        for (int i = 0; i < batterycount; i++)
+        {
+            batteryInUse[i] = false;
+            batteryInDoor[i] = false;
+            batteryCanBePickedUp[i] = false;
+            batteryPositions[i] = {};
+        }
+        for (int i = 0; i < MAX_DISPLAY_MESSAGES; i++)
+        {
+            displayMessagesTimers[i] = 0;
+            displayMessagesPositions[i] = {};
+            memset(displayMessages[i], 0, MAX_DISPLAYMESSAGE_SIZE);
+        }
+        for (int i = 0; i < MAX_ENEMIES; i++)
+        {
+            enemySpawnTimers[i] = 0;
+            enemySpawnPoints[i] = {};
+            enemyPositions[i] = {};
+            enemyMovementRemainders[i] = {};
+            enemyDirections[i] = 0;
+            enemyFlying[i] = false;
+            enemyOnGround[i] = false;
+            enemyHealth[i] = 0;
+            enemyDead[i] = true;
+            enemyTypes[i] = regular;
+        }
+        for (int i = 0; i < MAXDOORS; i++)
+        {
+            doorStartPos[i] = {};
+            doorEndPos[i] = {};
+            doorOpen[i] = false;
+            doorKeyPos[i] = {};
+            doorKeyholeHasBattery[i] = false;
+            doorKeyholebattery[i] = bigjump;
+        }
+        doorCount = 0;
+        doorloadcount = 0;
+        doorkeycount = 0;
+        for (int i = 0; i < MAX_BULLETS; i++)
+        {
+            bulletsTs[i] = none;
+            bulletsVs[i] = {};
+            bulletsPs[i] = {};
+        }
+        bulletCount = 0;
+    }
+
+    LoadTilemap("devtilemap.txt");
+    LoadDoors();
+    LoadTileTextures();
+
+    SetEnemyStatsProperBecauseInitValueNotWorking();
+
+    { // loading screen stuff
+        // Texture loadingbackground = LoadTexture("loadingbackground.png");
+    }
+
+    SetBulletDamages();
+    for (int i = 0; i < enemyCount; i++)
+    {
+        printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
+    }
+
+    {
+        p.pos = player_spawnpoint;
+        p.size = {11, 14};
+        p.lastDir = {1, 0};
+        p.col = (Color){0xff, 0xff, 0x00, 50};
+        p.aabb.max = p.pos + (p.size/2);
+        p.aabb.min = p.pos - (p.size/2);
+        p.speed = NORMALSPEED;
+        p.jumpVel = -3;
+        p.doubleJumpVel = DOUBLEJUMPVEL;
+        p.maxJumps = 1;
+        p.bullettype = normalbullet; // none = normal
+        p.shootDelay = bulletDelays[p.bullettype];
+        p.maxHealth = NORMALMAXHEALTH;
+        p.health = p.maxHealth;
+        p.tint = WHITE;
+
+        p.tex = LoadTexture("assets/player.png");
+    }
+
+    {
+        camera.zoom = 4;
+        camera.rotation = 0;
+        camera.offset = {windowWidth / 2.f, windowHeight / 2.f + 180};
+        camera.target = {0};
+    }
+
+    // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);
+    // solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
+
 }

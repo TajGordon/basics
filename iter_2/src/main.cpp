@@ -5,60 +5,20 @@
 #include <malloc/_malloc.h>
 
 
+
+
+
 int main(void)
 {
-    InitWindow(windowWidth, windowHeight, "A window");
+    InitWindow(windowWidth, windowHeight, "drinkingbatteryacid.jfif");
     SetTargetFPS(120);
 
-    #define MAX_SOLID_COUNT 100
-    Solid* solids = (Solid*)malloc(sizeof(Solid) * MAX_SOLID_COUNT);
-    int solidCount = 0;
-
-    LoadTilemap("devtilemap.txt");
-    LoadDoors();
-    LoadTileTextures();
-
-    SetEnemyStatsProperBecauseInitValueNotWorking();
-
-    SetBulletDamages();
-    for (int i = 0; i < enemyCount; i++)
+    if (ReadTopScoreFromFile())
     {
-        printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
+        printf("\033[1;31mError: File pointer is NULL.\033[0m\n");
+        return 1;
     }
 
-    Player p = {};
-    {
-        p.pos = player_spawnpoint;
-        p.size = {11, 14};
-        p.lastDir = {1, 0};
-        p.col = (Color){0xff, 0xff, 0x00, 50};
-        p.aabb.max = p.pos + (p.size/2);
-        p.aabb.min = p.pos - (p.size/2);
-        p.speed = NORMALSPEED;
-        p.jumpVel = -3;
-        p.doubleJumpVel = DOUBLEJUMPVEL;
-        p.maxJumps = 1;
-        p.bullettype = normalbullet; // none = normal
-        p.shootDelay = bulletDelays[p.bullettype];
-        p.maxHealth = NORMALMAXHEALTH;
-        p.health = p.maxHealth;
-        p.tint = WHITE;
-
-        p.tex = LoadTexture("assets/player.png");
-    }
-
-    Camera2D camera;
-    {
-        camera.zoom = 4;
-        camera.rotation = 0;
-        camera.offset = {windowWidth / 2.f, windowHeight / 2.f + 180};
-        camera.target = {0};
-    }
-
-    // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);
-    // solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
-
-    double physicsAccumulator = 0;
     while (!WindowShouldClose())
     {
         if (gamestate == running)
@@ -73,7 +33,7 @@ int main(void)
                 physicsAccumulator -= physicsDTs;
                 /*-------------------------*/
                 TickDisplayMessagesTimers();
-                EnemyPhysicsProcess(solids, solidCount, time);
+                EnemyPhysicsProcess(&p, solids, solidCount, time);
                 BulletPhysicsProcess();
                 PlayerPhysicsProcess(&p, solids, solidCount, time);
             }
@@ -112,13 +72,72 @@ int main(void)
                 DrawText(TextFormat("aliveenemycount: %d", aliveEnemyCount), 20, 60, 40, RED);
                 DrawText(TextFormat("enemycount: %d", enemyCount), 20, 180, 40, RED);
                 DrawText(TextFormat("Player.health: %d", p.health), 20, 140, 40, RED);
+                DrawText(TextFormat("Player.score: %d", p.score), 20, 260, 40, RED);
                 DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
-                DrawText(TextFormat("FPS: %f", 1/dt), 20, 280, 50, GREEN);
+                DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
+            }
+            EndDrawing();
+        }
+        if (gamestate == gameover)
+        {
+            if (IsKeyPressed(KEY_X))
+            {
+                gamestate = gameloadingscreen;
+                newtopscoreflag = 0;
+            }
+
+
+            BeginDrawing();
+            {
+                ClearBackground(BLACK);
+                const char* titletext = "GAME OVER\0";
+                DrawText(titletext, (windowWidth / 2) - MeasureText(titletext, TITLEFONTSIZE * 2)/2, windowHeight/2 - TITLEFONTSIZE * 2, TITLEFONTSIZE * 2, MAROON);
+                const char* subtitletext = TextFormat("SCORE: %d", p.score);
+                const char* subsubtitletext = "Press 'X' to return to the main menu\0";
+                DrawText(subtitletext, (windowWidth / 2) - MeasureText(subtitletext, SUBTITLEFONTSIZE)/2, windowHeight/2 , SUBTITLEFONTSIZE, WHITE);
+                subtitletext = TextFormat("BATTERIES COLLECTED: %d", 0);// p->batteriesCollected);
+                DrawText(subtitletext, (windowWidth / 2) - MeasureText(subtitletext, SUBTITLEFONTSIZE)/2, windowHeight/2 + SUBTITLEFONTSIZE, SUBTITLEFONTSIZE, WHITE);
+                DrawText(subsubtitletext, (windowWidth / 2) - MeasureText(subsubtitletext, SUBSUBTITLEFONTSIZE)/2, windowHeight/2 + SUBTITLEFONTSIZE * 4, SUBSUBTITLEFONTSIZE, DARKGRAY);
+                const char* newsubtitletext = "NEW TOP SCORE!!!\n";
+                if (newtopscoreflag)
+                {
+                    DrawText(newsubtitletext, 0, 0, 30, GOLD);
+                }
+            }
+            EndDrawing();
+        }
+        if (gamestate == gameloadingscreen)
+        {
+            if (IsKeyPressed(KEY_O))
+            {
+                LoadGame();
+                gamestate = running;
+            }
+            BeginDrawing();
+            {
+                ClearBackground(BLACK);
+                const char* titletext = "DURACELL ADVENTURES\0";
+                DrawText(titletext, (windowWidth / 2) - MeasureText(titletext, TITLEFONTSIZE)/2, windowHeight/2 - TITLEFONTSIZE, TITLEFONTSIZE, MAROON);
+                const char* subtitletext = "Press 'O' to start\0";
+                DrawText(subtitletext, (windowWidth / 2) - MeasureText(subtitletext, SUBTITLEFONTSIZE)/2, windowHeight/2 , SUBTITLEFONTSIZE, WHITE);
+
+                if (maxscore > 0)
+                {
+                    const char* scoretext = TextFormat("TOPSCORE: %d", maxscore);
+                    DrawText(scoretext, 0, 0, 25, GOLD);
+                }
             }
             EndDrawing();
         }
     }
     CloseWindow();
+
+
+    if (WriteTopScoreToFile())
+    {
+        printf("\033[1;31mError: File pointer is NULL.\033[0m\n");
+        return 1;
+    }
 
     return 0;
 }

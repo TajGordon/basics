@@ -1,18 +1,15 @@
 # TODO LIST
 
-[] __Level map__
+[] __FIX THE LAG__
 
-[] __Enemies__
-[] __Enemy movement__
-[] __Enemy death__
-[] __Enemies Damage You__
-[] __Enemies give you Score__
+ [] __Level map__
+
+[] __Use advanced math setting options__
 
 [] __Get Sprites__
 
 [] __Checkpoints / Save Stations__
 [] __Dying__
-[] __Spikes / Traps__
 
 [] __Ship that causes you to Win the Game__
 [] __Ability to Place Batteries in the Ship__
@@ -25,6 +22,8 @@
 ### This could give the dash ability
 ### Needed to repair the ship
 
+[] __Door rendering code stops rendering door  based on just the bottom__
+
 # This is like berserker, less hp, but more atk and spd
 [] __Overdrive battery__
 
@@ -33,6 +32,15 @@
 
 
 ### COMPLETED!!!
+
+[X] __Reset after death__
+[X] __Title screen__
+[X] __Enemies Damage You__
+[X] __Enemy death__
+[X] __Spikes / Traps__
+[X] __Enemies__
+[X] __Enemy movement__
+[X] __Killing Enemies give you Score__
 
 [X] __Fix the keyhole not workign when 2 keyholes are on screen__
 

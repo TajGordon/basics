@@ -6,6 +6,10 @@
 
 #define SLOWDOWN_GRAVITY 0.5
 #define GRAVITY 9.81
+#define TITLEFONTSIZE 90
+#define SUBTITLEFONTSIZE 45
+#define SUBSUBTITLEFONTSIZE 20
+#define MAX_SOLID_COUNT 100
 typedef struct AABB
 {
     Vector2 min;
