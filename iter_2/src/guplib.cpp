@@ -1185,19 +1185,6 @@ void DrawPlayer(Player a)
     DrawRectangleV(a.pos - (a.size / 2), a.size, a.col);
 }
 
-void PlayerStandingOnSpikeCheck(Player* p)
-{
-    Vector2 tmpos = {p->pos.x/TMSIZE, p->pos.y/TMSIZE + 1};
-    tmpos = tmpos * TMSIZE;
-    AABB tmposaabb = {tmpos, tmpos + TMSIZE};
-
-    if (tmposaabb.min.x < p->pos.x && tmposaabb.max.x > p->pos.x
-     && tmposaabb.min.y <= p->pos.y + p->size.y/2 + 1 && tmposaabb.max.y >= p->pos.y + p->size.y/2 + 1)
-    { p->standingOnSpike = true; }
-    else
-    { p->standingOnSpike = false; }
-}
-
 bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
 {
     AABB aabb = {.max = pos + (a->size/2), .min = pos - (a->size/2)};
@@ -1220,6 +1207,8 @@ bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
                         AABB taabb = {.min = (Vector2){(float)x * TMSIZE, (float)y * TMSIZE}, .max = (Vector2){(float)x * TMSIZE + TMSIZE, (float)y * TMSIZE + TMSIZE}};
                         if (AABBsColliding(aabb, taabb))
                         {
+                            if (tilemap[x][y] == spike)
+                            { a->standingOnSpike = true; }
                             return true;
                         }
                     }
@@ -1366,7 +1355,7 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
         }
     }
 
-    PlayerStandingOnSpikeCheck(p);
+    p->standingOnSpike = false;
     // Still on Ground check
     {
         // if we move the player down EPSILON, would they be colliding? if so, they're on ground
