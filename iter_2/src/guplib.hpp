@@ -4,6 +4,8 @@
 #define Round(x) ((int)(x))
 #define Sign(x) (((x) < 0) ? -1 : 1)
 
+#define SLOWDOWN_GRAVITY 0.5
+#define GRAVITY 9.81
 typedef struct AABB
 {
     Vector2 min;
@@ -87,7 +89,8 @@ typedef struct Player
     int score;
 
     bool standingOnSpike;
-    #define SPIKEHITCOOLDOWN 1
+    Vector2 damageimpulse;
+    #define SPIKEHITCOOLDOWN 0.5
     double lastspikehit;
 
     #define DAMAGETINTDURATION 0.5

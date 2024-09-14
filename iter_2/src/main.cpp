@@ -18,7 +18,13 @@ int main(void)
     LoadDoors();
     LoadTileTextures();
 
+    SetEnemyStatsProperBecauseInitValueNotWorking();
+
     SetBulletDamages();
+    for (int i = 0; i < enemyCount; i++)
+    {
+        printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
+    }
 
     Player p = {};
     {
@@ -55,55 +61,62 @@ int main(void)
     double physicsAccumulator = 0;
     while (!WindowShouldClose())
     {
-        float dt = GetFrameTime();
-        physicsAccumulator += dt;
+        if (gamestate == running)
+        {
+            float dt = GetFrameTime();
+            physicsAccumulator += dt;
 
-        // Physics update
-        double time = GetTime();
-        if (physicsAccumulator > physicsDTs)
-        {
-            physicsAccumulator -= physicsDTs;
-            /*-----------------*/
-            TickDisplayMessagesTimers();
-            BulletPhysicsProcess();
-            PlayerPhysicsProcess(&p, solids, solidCount, time);
-        }
-        // Render update
-        {
-            CameraFollowPlayer(&camera, &p);
-            /* Checking for input for things like jumping always */
-            /* so that we get the most responsive movement */
-            if (IsKeyPressed(KEY_SPACE))
+            // Physics update
+            double time = GetTime();
+            if (physicsAccumulator > physicsDTs)
             {
-                p.pressedJump = true;
-                p.timeLastJumpPressed = GetTime();
+                physicsAccumulator -= physicsDTs;
+                /*-------------------------*/
+                TickDisplayMessagesTimers();
+                EnemyPhysicsProcess(solids, solidCount, time);
+                BulletPhysicsProcess();
+                PlayerPhysicsProcess(&p, solids, solidCount, time);
             }
-        }
-        // Rendering
-        BeginDrawing();
-        {
-            ClearBackground(BLUE);
-
-            BeginMode2D(camera);
+            // Render update
             {
-                DrawTilemap(&p);
-                DrawSolids(solids, solidCount);
-                DrawBatteries(&p, camera, time);
-                RenderDoors(camera, &p);
-                RenderDisplayMessages();
-                DrawBullets();
-                DrawPlayer(p);
+                CameraFollowPlayer(&camera, &p);
+                /* Checking for input for things like jumping always */
+                /* so that we get the most responsive movement */
+                if (IsKeyPressed(KEY_SPACE))
+                {
+                    p.pressedJump = true;
+                    p.timeLastJumpPressed = GetTime();
+                }
             }
-            EndMode2D();
+            // Rendering
+            BeginDrawing();
+            {
+                ClearBackground(BLUE);
 
-            // Debug info
-            DrawText(TextFormat("Players x velocity: %f", p.vel.x), 20, 20, 40, RED);
-            DrawText(TextFormat("Players pos: %f %f ", p.pos.x, p.pos.y), 20, 100, 40, RED);
-            DrawText(TextFormat("BulletCount: %d", bulletCount), 20, 60, 40, RED);
-            DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
-            DrawText(TextFormat("FPS: %f", 1/dt), 20, 280, 50, GREEN);
+                BeginMode2D(camera);
+                {
+                    DrawTilemap(&p);
+                    DrawSolids(solids, solidCount);
+                    DrawBatteries(&p, camera, time);
+                    RenderEnemies();
+                    RenderDoors(camera, &p);
+                    RenderDisplayMessages();
+                    DrawBullets();
+                    DrawPlayer(p);
+                }
+                EndMode2D();
+
+                // Debug info
+                DrawText(TextFormat("Players x velocity: %f", p.vel.x), 20, 20, 40, RED);
+                DrawText(TextFormat("Players pos: %f %f ", p.pos.x, p.pos.y), 20, 100, 40, RED);
+                DrawText(TextFormat("aliveenemycount: %d", aliveEnemyCount), 20, 60, 40, RED);
+                DrawText(TextFormat("enemycount: %d", enemyCount), 20, 180, 40, RED);
+                DrawText(TextFormat("Player.health: %d", p.health), 20, 140, 40, RED);
+                DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
+                DrawText(TextFormat("FPS: %f", 1/dt), 20, 280, 50, GREEN);
+            }
+            EndDrawing();
         }
-        EndDrawing();
     }
     CloseWindow();
 

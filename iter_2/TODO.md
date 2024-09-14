@@ -1,8 +1,5 @@
 # TODO LIST
 
-### URGENT
-[] __Fix the keyhole not workign when 2 keyholes are on screen__
-
 [] __Level map__
 
 [] __Enemies__
@@ -37,6 +34,7 @@
 
 ### COMPLETED!!!
 
+[X] __Fix the keyhole not workign when 2 keyholes are on screen__
 
 [X] __Toggleable Doors__
 [X] __Doors Powered by Batteries__
