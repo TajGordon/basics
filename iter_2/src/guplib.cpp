@@ -1089,10 +1089,8 @@ Vector2 enemySpawnPoints[MAX_ENEMIES] = {};
 
 // as position
 Vector2 enemyPositions[MAX_ENEMIES] = {};
-Vector2 enemyMovementRemainders[MAX_ENEMIES] = {};
+Vector2 enemyVelocities[MAX_ENEMIES] = {};
 int enemyDirections[MAX_ENEMIES] = {};
-bool enemyFlying[MAX_ENEMIES] = {};
-bool enemyOnGround[MAX_ENEMIES] = {};
 int enemyHealth[MAX_ENEMIES] = {};
 bool enemyDead[MAX_ENEMIES] = {};
 Enemy enemyTypes[MAX_ENEMIES] = {};
@@ -1127,52 +1125,82 @@ bool EnemyCollidingAt(int enemyidx, Vector2 pos, Solid* solids, int solidCount)
 {
     Rectangle enemyRect = {pos.x - enemySize[enemyTypes[enemyidx]].x / 2, pos.y - enemySize[enemyTypes[enemyidx]].y / 2, enemySize[enemyTypes[enemyidx]].x, enemySize[enemyTypes[enemyidx]].y};
 
+    // the commented code IS FUCKED AND KILLS FPS
+    // kills fps? this should be enableable by the player
     // Check if colliding with the tilemap
+    // {
+    //     // // prevent enemy from walking on spikes
+    //     // int minx = (enemyRect.x / TMSIZE) - 1;
+    //     // int miny = (enemyRect.y / TMSIZE) - 1;
+    //     // int maxx = (enemyRect.x + enemyRect.width / TMSIZE) + 1;
+    //     // int maxy = (enemyRect.y + enemyRect.height / TMSIZE) + 1;
+
+    //     // for (int y = miny; y <= maxy; y++)
+    //     // {
+    //     //     for (int x = minx; x <= maxx; x++)
+    //     //     {
+    //     //         if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
+    //     //         {
+    //     //             if (tilemap[x][y] != empty)
+    //     //             {
+    //     //                 Rectangle tileRect = {(float)x * TMSIZE, (float)y * TMSIZE, TMSIZE, TMSIZE};
+    //     //                 if (CheckCollisionRecs(enemyRect, tileRect))
+    //     //                 {
+    //     //                     return true;
+    //     //                 }
+    //     //             }
+    //     //         }
+    //     //     }
+    //     // }
+
+    // }
+
+    // // Check if colliding with any solid in the scene, currently loops over every solid object
+    // for (int i = 0; i < solidCount; i++)
+    // {
+    //     Solid* s = &solids[i];
+    //     if (s->collideable)
+    //     {
+    //         Rectangle solidRect = {s->pos.x - s->size.x / 2, s->pos.y - s->size.y / 2, s->size.x, s->size.y};
+    //         if (CheckCollisionRecs(enemyRect, solidRect))
+    //         {
+    //             return true;
+    //         }
+    //     }
+    // }
+
+    // // Check if colliding with any door
+    // for (int j = 0; j < doorCount; j++)
+    // {
+    //     if (!doorOpen[j])
+    //     {
+    //         Rectangle doorRect = {doorStartPos[j].x * TMSIZE, doorEndPos[j].y * TMSIZE, DOORTHICKNESS, (doorStartPos[j].y - doorEndPos[j].y) * TMSIZE + TMSIZE};
+    //         if (CheckCollisionRecs(enemyRect, doorRect))
+    //         {
+    //             return true;
+    //         }
+    //     }
+    // }
+    // Check if colliding with the tilemap
+    int minx = (enemyRect.x / TMSIZE) - 1;
+    int miny = (enemyRect.y / TMSIZE) - 1;
+    int maxx = ((enemyRect.x + enemyRect.width) / TMSIZE) + 1;
+    int maxy = ((enemyRect.y + enemyRect.height) / TMSIZE) + 1;
+
+    for (int y = miny; y <= maxy; y++)
     {
-        // prevent enemy from walking on spikes
-        if (tilemap[(int)(enemyRect.x + enemyRect.width / 2) / TMSIZE][(int)(enemyRect.y + enemyRect.height) / TMSIZE + 1] == spike)
+        for (int x = minx; x <= maxx; x++)
         {
-            return true;
-        }
-        if (tilemap[(int)(enemyRect.x - enemyRect.width / 2) / TMSIZE][(int)(enemyRect.y + enemyRect.height) / TMSIZE + 1] == spike)
-        {
-            return true;
-        }
-
-        int minx = (enemyRect.x / TMSIZE) - 1;
-        int miny = (enemyRect.y / TMSIZE) - 1;
-        int maxx = (enemyRect.x + enemyRect.width / TMSIZE) + 1;
-        int maxy = (enemyRect.y + enemyRect.height / TMSIZE) + 1;
-
-        for (int y = miny; y <= maxy; y++)
-        {
-            for (int x = minx; x <= maxx; x++)
+            if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
             {
-                if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
+                if (tilemap[x][y] != empty && tilemap[x][y] != spike)
                 {
-                    if (tilemap[x][y] != empty)
+                    Rectangle tileRect = {(float)x * TMSIZE, (float)y * TMSIZE, TMSIZE, TMSIZE};
+                    if (CheckCollisionRecs(enemyRect, tileRect))
                     {
-                        Rectangle tileRect = {(float)x * TMSIZE, (float)y * TMSIZE, TMSIZE, TMSIZE};
-                        if (CheckCollisionRecs(enemyRect, tileRect))
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
-            }
-        }
-    }
-
-    // Check if colliding with any solid in the scene, currently loops over every solid object
-    for (int i = 0; i < solidCount; i++)
-    {
-        Solid* s = &solids[i];
-        if (s->collideable)
-        {
-            Rectangle solidRect = {s->pos.x - s->size.x / 2, s->pos.y - s->size.y / 2, s->size.x, s->size.y};
-            if (CheckCollisionRecs(enemyRect, solidRect))
-            {
-                return true;
             }
         }
     }
@@ -1197,107 +1225,74 @@ bool EnemyCollidingAt(int enemyidx, Vector2 pos, Solid* solids, int solidCount)
 void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
 {
     // Iterate through each enemy to process their physics
-    // for (int i = 0; i < enemyCount; i++)
-    // {
-    //     // Check if the enemy is not dead
-    //     if (!enemyDead[i])
-    //     {
-    //         // If the enemy's health is less than 1, mark it as dead and set a respawn timer
-    //         if (enemyHealth[i] < 1)
-    //         {
-    //             enemySpawnTimers[i] = ENEMYSPAWNCOOLDOWNSECONDS;
-    //             enemyDead[i] = true;
-    //             p->score += enemyScore[enemyTypes[i]];
-    //             AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
-    //             aliveEnemyCount--;
-    //             continue;
-    //         }
-    //         if (!enemyFlying[i] && !enemyOnGround[i])
-    //         {
-    //             if (!EnemyCollidingAt(i, enemyPositions[i] + (Vector2){0, 1}, solids, solidCount))
-    //             {
-    //                 enemyPositions[i].y += 1;
-    //             }
-    //             else
-    //             {
-    //                 enemyOnGround[i] = true;
-    //             }
-    //             continue;
-    //         }
+    for (int i = 0; i < enemyCount; i++)
+    {
+        // Check if the enemy is not dead
+        if (!enemyDead[i])
+        {
+            // If the enemy's health is less than 1, mark it as dead and set a respawn timer
+            if (enemyHealth[i] < 1)
+            {
+                enemySpawnTimers[i] = ENEMYSPAWNCOOLDOWNSECONDS;
+                enemyDead[i] = true;
+                p->score += enemyScore[enemyTypes[i]];
+                AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
+                aliveEnemyCount--;
+                continue;
+            }
+
+            // Apply gravity if enemy is in the air
+            if (!EnemyCollidingAt(i, enemyPositions[i] + (Vector2){0, 1}, solids, solidCount))
+            {
+                enemyVelocities[i].y += GRAVITY * physicsDTs;
+            }
+            else
+            {
+                enemyVelocities[i].y = 0;
+            }
+
+            // Update enemy position
+
+            if (EnemyCollidingAt(i, enemyPositions[i] + enemyVelocities[i], solids, solidCount))
+            {
+                enemyVelocities[i].x *= -1; // flip around
+            }
+            else
+            { enemyPositions[i] = enemyPositions[i] + enemyVelocities[i]; }
+
+            // Push players out of the way
+
+            // Check if colliding with the player, if so, push the player
+            AABB enemyAABB = {.max = enemyPositions[i] + (enemySize[enemyTypes[i]] / 2), .min = enemyPositions[i] - (enemySize[enemyTypes[i]] / 2)};
+            AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
+            if (AABBsColliding(enemyAABB, playerAABB))
+            {
+                Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
+                p->damageimpulse = pushDir * 5;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
+                p->health -= enemyHealth[i]; // Adjust the damage as needed
+                p->lasthittaken = time;
+            }
+
+        }
+        else if (enemyDead[i]) // If the enemy is dead
+        {
+            // Decrease the respawn timer
+            enemySpawnTimers[i] -= physicsDTs;
+            // If the respawn timer has run out, respawn the enemy
+            if (enemySpawnTimers[i] < 0 + EPSILON)
+            {
+                enemySpawnTimers[i] = 0;
+                enemyHealth[i] = enemyMaxHealth[enemyTypes[i]];
+                enemyPositions[i] = enemySpawnPoints[i] * TMSIZE;
 
 
-    //         enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
-    //         int moveX = Round(enemyMovementRemainders[i].x);
-    //         if (moveX != 0)
-    //         {
-    //             enemyMovementRemainders[i].x -= moveX;
-    //             int sign = Sign(moveX);
-    //             while (moveX != 0)
-    //             {
-    //                 Vector2 newPos = enemyPositions[i] + (Vector2){(float)sign, 0};
-    //                 if (!EnemyCollidingAt(i, newPos, solids, solidCount))
-    //                 {
-    //                     enemyPositions[i].x += sign;
-    //                     moveX -= sign;
-    //                 }
-    //                 else
-    //                 {
-    //                     enemyDirections[i] *= -1;
-    //                     break;
-    //                 }
-    //             }
-    //         }
 
-    //         enemyMovementRemainders[i].y += enemySpeeds[enemyTypes[i]];
-    //         int moveY = Round(enemyMovementRemainders[i].y);
-    //         if (moveY != 0)
-    //         {
-    //             enemyMovementRemainders[i].y -= moveY;
-    //             int sign = Sign(moveY);
-    //             while (moveY != 0)
-    //             {
-    //                 Vector2 newPos = enemyPositions[i] + (Vector2){0, (float)sign};
-    //                 if (!EnemyCollidingAt(i, newPos, solids, solidCount))
-    //                 {
-    //                     enemyPositions[i].y += sign;
-    //                     moveY -= sign;
-    //                 }
-    //                 else
-    //                 {
-    //                     break;
-    //                 }
-    //             }
-    //         }
-
-    //         // Push players out of the way
-
-    //         // Check if colliding with the player, if so, push the player
-    //         AABB enemyAABB = {.max = enemyPositions[i] + (enemySize[enemyTypes[i]] / 2), .min = enemyPositions[i] - (enemySize[enemyTypes[i]] / 2)};
-    //         AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
-    //         if (AABBsColliding(enemyAABB, playerAABB))
-    //         {
-    //             Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
-    //             p->damageimpulse = pushDir * 5;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
-    //             p->health -= enemyHealth[i]; // Adjust the damage as needed
-    //             p->lasthittaken = time;
-    //         }
-
-    //     }
-    //     else if (enemyDead[i]) // If the enemy is dead
-    //     {
-    //         // Decrease the respawn timer
-    //         enemySpawnTimers[i] -= physicsDTs;
-    //         // If the respawn timer has run out, respawn the enemy
-    //         if (enemySpawnTimers[i] < 0 + EPSILON)
-    //         {
-    //             enemySpawnTimers[i] = 0;
-    //             enemyHealth[i] = enemyMaxHealth[enemyTypes[i]];
-    //             enemyPositions[i] = enemySpawnPoints[i] * TMSIZE;
-    //             enemyDead[i] = false;
-    //             aliveEnemyCount++;
-    //         }
-    //     }
-    // }
+                enemyVelocities[i] = {(float)((rand() % 2) ? 1 : -1) * ((rand() % 3) + 1), 0};
+                enemyDead[i] = false;
+                aliveEnemyCount++;
+            }
+        }
+    }
 }
 
 void RenderEnemies(Camera2D camera)
@@ -2144,10 +2139,7 @@ void LoadGame()
             enemySpawnTimers[i] = 0;
             enemySpawnPoints[i] = {};
             enemyPositions[i] = {};
-            enemyMovementRemainders[i] = {};
             enemyDirections[i] = 0;
-            enemyFlying[i] = false;
-            enemyOnGround[i] = false;
             enemyHealth[i] = 0;
             enemyDead[i] = true;
             enemyTypes[i] = regular;
