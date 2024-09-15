@@ -1055,8 +1055,8 @@ float enemyMaxHealth[enemytypecount] =
 
 Vector2 enemySize[enemytypecount] =
 {
-    {10, 16},
-    {10, 16},
+    {10, 16}, // light
+    {10, 32}, // heavy
     {20, 20},
 };
 
@@ -1077,7 +1077,7 @@ int enemyScore[enemytypecount] =
 Vector2 enemyOffsets[enemytypecount] =
 {
     {8, 8},
-    {8, 24},
+    {8, 16},
 };
 
 #define ENEMYSPAWNCOOLDOWNSECONDS 300
@@ -1328,6 +1328,8 @@ void LoadTileTextures()
     tileTex[stone] = LoadTexture("assets/stone.png");
     tileTex[breakable] = LoadTexture("assets/breakable.png");
     tileTex[spike] = LoadTexture("assets/spike.png");
+    tileTex[cloud] = LoadTexture("assets/cloud.png");
+    tileTex[platform] = LoadTexture("assets/platform.png");
 }
 
 #define windowWidth 1280
@@ -1388,11 +1390,13 @@ void LoadTilemap(const char* path)
                 }
                 case 'P':
                 {
-
+                    t = platform;
+                    break;
                 }
                 case 'C':
                 {
-
+                    t = cloud;
+                    break;
                 }
                 case '#':
                 {
@@ -1605,7 +1609,7 @@ void BulletPhysicsProcess(Player* p, double time)
                 {
                     if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
                     {
-                        if (tilemap[x][y] != empty)
+                        if (tilemap[x][y] != empty && tilemap[x][y] != cloud && tilemap[x][y] != platform)
                         {
                             Rectangle trect = (Rectangle){(float)x * TMSIZE, (float)y * TMSIZE, TMSIZE, TMSIZE};
                             if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], trect))
@@ -1769,7 +1773,15 @@ bool PlayerCollidingAt(Player* a, Vector2 pos, Solid* solids, int solidCount)
             {
                 if (x >= 0 && x < WORLD_SIZE_X && y >= 0 && y < WORLD_SIZE_Y)
                 {
-                    if (tilemap[x][y] != empty)
+                    if (tilemap[x][y] == platform)
+                    {
+                        AABB taabb = {.min = (Vector2){(float)x * TMSIZE, (float)y * TMSIZE}, .max = (Vector2){(float)x * TMSIZE + TMSIZE, (float)y * TMSIZE + 3}};
+                        if (AABBsColliding(aabb, taabb))
+                        {
+                            return true;
+                        }
+                    }
+                    else if (tilemap[x][y] != empty)
                     {
                         AABB taabb = {.min = (Vector2){(float)x * TMSIZE, (float)y * TMSIZE}, .max = (Vector2){(float)x * TMSIZE + TMSIZE, (float)y * TMSIZE + TMSIZE}};
                         if (AABBsColliding(aabb, taabb))

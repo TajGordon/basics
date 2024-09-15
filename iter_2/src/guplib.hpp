@@ -35,6 +35,8 @@ typedef enum Tile
    stone,
    breakable,
    spike,
+   cloud,
+   platform,
    tilecount,
 } Tile;
 

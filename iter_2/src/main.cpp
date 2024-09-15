@@ -40,7 +40,7 @@ int main(void)
 
                 if (IsKeyPressed(KEY_R))
                 {
-                    gamestate = reload;
+                    // gamestate = reload;
                 }
 
                 // Physics update
@@ -100,7 +100,7 @@ int main(void)
                     // DrawText(TextFormat("Player.health: %d", p.health), 20, 140, 40, RED);
                     // DrawText(TextFormat("Player.score: %d", p.score), 20, 260, 40, RED);
                     // DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
-                    DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
+                    // DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
                 }
                 EndDrawing();
                 exitWindow = WindowShouldClose();

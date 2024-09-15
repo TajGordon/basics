@@ -3,6 +3,7 @@
 [] __This isnt something to do, why the fuck isn't the player in global scope? you pass him around everywhere...__
 ### it is in the global scope, just below all the funcitons for some fucking reason
 
+[] __Make putting batteries into the ship nicer of an experience__
 
 [] __FIX THE LAG__
 
@@ -10,15 +11,14 @@
 # maybe, could be interesting
 
 [] __Hide whats behind breakable walls__
-[] __Unfuck the enemies__
+[] __By adding lighting????__
+
+[] __Unfuck the enemies__ ## what does this mean
 [] __Batteries have gravity__
-[] __Platforms serparate from ground__
 
 [] __Ranged enemies turn to face player__
 
 [] __Only 1 pickup message at a time__
-
-
 
 [] __Use advanced math setting options__
 
@@ -47,6 +47,9 @@
 
 [x] __Implement special item__
 # must find special item before winning the game
+
+[X] __Platforms have their own hitbox__
+[X] __Platforms serparate from ground__
 
 [X] __Stop enemies from basically crashing the game__
 [X] __Ranged enemies__
