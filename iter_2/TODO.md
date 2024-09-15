@@ -3,7 +3,6 @@
 [] __This isnt something to do, why the fuck isn't the player in global scope? you pass him around everywhere...__
 ### it is in the global scope, just below all the funcitons for some fucking reason
 
-[] __Put the enemies back in the game__
 
 [] __FIX THE LAG__
 
@@ -11,20 +10,15 @@
 # maybe, could be interesting
 
 [] __Hide whats behind breakable walls__
-[] __Stop enemies from basically crashing the game__
 [] __Unfuck the enemies__
 [] __Batteries have gravity__
 [] __Platforms serparate from ground__
 
-[] __Ranged enemies__
 [] __Ranged enemies turn to face player__
 
 [] __Only 1 pickup message at a time__
 
-[] __Implement special item__
-## must find special item before winning the game
 
-[] __Level map__
 
 [] __Use advanced math setting options__
 
@@ -51,6 +45,14 @@
 
 ### COMPLETED!!!
 
+[x] __Implement special item__
+# must find special item before winning the game
+
+[X] __Stop enemies from basically crashing the game__
+[X] __Ranged enemies__
+[X] __Level map__
+
+[X] __Put the enemies back in the game__
 [X] __Ranged enemy knockback__
 [X] __Dying__
 [X] __Fix player floating__
