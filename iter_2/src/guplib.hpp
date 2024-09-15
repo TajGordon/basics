@@ -37,6 +37,7 @@ typedef enum Tile
    spike,
    cloud,
    platform,
+   sky,
    tilecount,
 } Tile;
 

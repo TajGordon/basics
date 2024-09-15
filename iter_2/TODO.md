@@ -6,6 +6,8 @@
 [] __Make putting batteries into the ship nicer of an experience__
 
 [] __FIX THE LAG__
+[] __Fix enemy movement (its broken again)__
+[] __Fix the doors (broken)__
 
 [] __Make enemies not walk off ledges__
 # maybe, could be interesting

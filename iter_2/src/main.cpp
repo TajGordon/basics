@@ -40,7 +40,7 @@ int main(void)
 
                 if (IsKeyPressed(KEY_R))
                 {
-                    // gamestate = reload;
+                    gamestate = reload;
                 }
 
                 // Physics update
@@ -54,6 +54,7 @@ int main(void)
                     RangedEnemiesPhysicsProcess(&p);
                     BulletPhysicsProcess(&p, time);
                     PlayerPhysicsProcess(&p, solids, solidCount, time);
+                    CalculatePlayerFOV(&p);
                 }
                 // Render update
                 {
@@ -68,29 +69,16 @@ int main(void)
                 }
                 // (p.pos.y / minHeight) = % down we are
                 // when we are at minheight (the bottom), its 255 * (1 - (1)) = black
-                float depthfactor = (1 - (p.pos.y / minHeight) * 0.8);
-                unsigned char blueamount = 255 * depthfactor;
+                depthfactor = (1 - (p.pos.y / minHeight) * 0.7);
+                // unsigned char blueamount = 255 * depthfactor;
                 // Rendering
                 BeginDrawing();
                 {
                     // SKYBLUE
-                    ClearBackground({0, 0, blueamount, 0xff});
+                    // ClearBackground({0, 0, blueamount, 0xff});
+                    ClearBackground(BLACK);
 
-                    BeginMode2D(camera);
-                    {
-                        DrawTilemap(&p);
-                        DrawSolids(solids, solidCount);
-                        RenderShip(camera, &p);
-                        DrawBatteries(&p, camera, time);
-                        RenderDoors(camera, &p);
-                        RenderSpecialItem(&p, camera);
-                        RenderDisplayMessages();
-                        RenderEnemies(camera);
-                        RenderRangedEnemies(camera);
-                        DrawBullets();
-                        DrawPlayer(p);
-                    }
-                    EndMode2D();
+                    RenderGameWithLighting(&p, camera, time);
 
                     // Debug info
                     // DrawText(TextFormat("Players x velocity: %f", p.vel.x), 20, 20, 40, RED);
@@ -100,7 +88,7 @@ int main(void)
                     // DrawText(TextFormat("Player.health: %d", p.health), 20, 140, 40, RED);
                     // DrawText(TextFormat("Player.score: %d", p.score), 20, 260, 40, RED);
                     // DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
-                    // DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
+                    DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
                 }
                 EndDrawing();
                 exitWindow = WindowShouldClose();
