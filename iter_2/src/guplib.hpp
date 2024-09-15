@@ -12,12 +12,17 @@
 #define MAX_SOLID_COUNT 100
 #define INTERACTION_DISTANCE 20
 #define INSERTBATTERYFONTSIZE 10
-#define BIGJUMPVEL -4
-#define NORMALJUMPVEL -3
-#define DOUBLEJUMPVEL -2
+#define BIGJUMPVEL -4.6
+#define NORMALJUMPVEL -3.5
+#define DOUBLEJUMPVEL -2.3
+#define DOUBLEJUMPSIDEWAYSBONUSVELMULTIPLIER 1.5
 #define NORMALSPEED 2
 #define BATTERYDROPOFFSET 4
 #define QUICKIESPEED 3
+
+#define WORLD_SIZE_X 400
+#define WORLD_SIZE_Y 200
+
 typedef struct AABB
 {
     Vector2 min;
@@ -52,6 +57,7 @@ typedef enum Bullet
     lightbullet,
     heavybullet,
     normalbullet,
+    enemylightbullet,
     bulletcount
 } Bullet;
 
@@ -82,10 +88,14 @@ typedef struct Player
 
     bool grounded;
     bool pressedJump;
-
+    Vector2 persistentVel;
 
     double timeLastOnGround;
     double timeLastJumpPressed;
+
+    double lastBulletHitTaken;
+    Bullet lastBulletHitType;
+    bool bulletHitNotAccountedFor;
 
     double timeLastJumped;
     int jumpCount;

@@ -62,7 +62,20 @@ bool AABBsColliding(AABB a, AABB b)
 /* Constants and shit */ // did not get fucking used at all lmao
 /**********************/
 const double physicsDTs = 1. / 60;
+float bulletSpeed[bulletcount] =
+{
+    0,
+    500,
+    200,
+    350,
+    200, // enemylightbullet
+};
 
+#define MAX_BULLETS 400
+Bullet bulletsTs[MAX_BULLETS] = {none};
+Vector2 bulletsVs[MAX_BULLETS] = {0};
+Vector2 bulletsPs[MAX_BULLETS] = {0};
+int bulletCount = 0;
 
 Texture batteryTexture;
 Texture batterySlotTexture;
@@ -88,6 +101,8 @@ typedef enum Gamestate
     gameover,
     gameloadingscreen,
     win,
+    specialitem,
+    reload,
     gamestatecount
 } Gamestate;
 
@@ -161,9 +176,41 @@ void AddDisplayMessage(Vector2 position, double durationSeconds, const char* mes
 /****************************/
 /* For putting in batteries */
 /****************************/
+int maxHeight = 0; // gonna be lower than minheight
+int minHeight = 0; // gonna be bigger than maxheight
+
 bool showingMessage = false;
 int showingMessageIndex = 0;
 
+Camera2D specialCamera = {};
+
+bool foundSpecialItem = false;
+Vector2 specialItemPos = {};
+Texture2D specialItemTex = {};
+
+void RenderSpecialItem(Player* p, Camera2D camera)
+{
+    if (!foundSpecialItem && TileOnScreen(specialItemPos/TMSIZE, camera))
+    {
+        DrawTexture(specialItemTex, specialItemPos.x, specialItemPos.y, WHITE);
+
+
+        if (Vector2Distance(p->pos, specialItemPos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
+        {
+            const char* text = "?!?!??!?!?!?!?!?!?!?!??!?!?!?!?!\0";
+            #define specialitemtextcolor (Color){255, 203, 0, 0xff}
+            #define specialitemfontsize 25
+            int textoffset = MeasureText(text, specialitemfontsize)/2;
+            DrawText(text, p->pos.x - textoffset, p->pos.y - TMSIZE * 2, specialitemfontsize, specialitemtextcolor);
+
+            if (IsKeyPressed(KEY_E))
+            {
+                foundSpecialItem = true;
+                gamestate = specialitem;
+            }
+        }
+    }
+}
 
 /**************/
 /* SHIP STUFF */
@@ -181,6 +228,7 @@ bool batteryInShip[batterycount] = {};
 
 int shipBatteryCount = 0;
 #define SHIPBATTERYSLOTSIZE (Vector2){8, 12}
+
 
 bool showingShipBatterySlotSelectionMessage = false;
 bool showingShipPlaceBatteryMessage = false;
@@ -304,10 +352,17 @@ void RenderShip(Camera2D camera, Player* p)
         int offset = MeasureText(text, GAMEWINSHIPFONTSIZE)/2;
         DrawText(text, shipPosition.x - offset, shipPosition.y - TMSIZE, GAMEWINSHIPFONTSIZE, GOLD);
 
-        if (IsKeyPressed(KEY_E))
+        if (IsKeyPressed(KEY_E) && foundSpecialItem)
         {
             gamestate = win;
             timeswon++;
+        }
+        else if (IsKeyPressed(KEY_E))
+        {
+            AddDisplayMessage(shipPosition - (Vector2){0, TMSIZE * 3}, 3,  "I can't leave without my special item\0");
+            showingShipPlaceBatteryMessage = false;
+            showingShipBatterySlotSelectionMessage = false;
+            showingBatterySlotRemovalMessage = false;
         }
         // could let you take them out, but nah, "electric current holds them in place"
     }
@@ -684,8 +739,6 @@ void DrawBatteries(Player* p, Camera2D camera, double time)
     }
 }
 
-const int WORLD_SIZE_X = 200;
-const int WORLD_SIZE_Y = 100;
 
 Tile tilemap[WORLD_SIZE_X][WORLD_SIZE_Y] = {};
 /*********/
@@ -921,9 +974,62 @@ void RenderDoors(Camera2D camera, Player* p)
     }
 }
 
+Rectangle GetPlayerRect(Player p)
+{
+    return {p.pos.x - p.size.x/2, p.pos.y - p.size.y/2, p.size.x, p.size.y};
+}
+
 /***********/
 /* Enemies */
 /***********/
+#define MAX_RANGED_ENEMIES 200
+Vector2 rangedEnemyPositions[MAX_RANGED_ENEMIES] = {};
+bool rangedEnemyAlive[MAX_RANGED_ENEMIES] = {};
+double rangedEnemyShootingCooldowns[MAX_RANGED_ENEMIES] = {};
+#define RANGEDENEMYSHOOTINGCOOLDOWNSECONDS 2
+Texture rangedEnemyTexture = {};
+int rangedEnemyCount = 0;
+
+void ShootEnemyBullet(Bullet bullettype, Vector2 fromPosition, Vector2 direction)
+{
+    bulletsTs[bulletCount] = bullettype;
+    bulletsPs[bulletCount] = fromPosition;
+    bulletsVs[bulletCount] = direction * bulletSpeed[bullettype];
+    bulletCount++;
+}
+
+void RenderRangedEnemies(Camera2D camera)
+{
+    for (int i = 0; i < rangedEnemyCount; i++)
+    {
+        if (rangedEnemyAlive[i] && TileOnScreen(rangedEnemyPositions[i]/TMSIZE, camera))
+        {
+            DrawTexture(rangedEnemyTexture, rangedEnemyPositions[i].x, rangedEnemyPositions[i].y, WHITE);
+        }
+    }
+}
+
+void RangedEnemiesPhysicsProcess(Player* p)
+{
+    for (int i = 0; i < rangedEnemyCount; i++)
+    {
+        if (rangedEnemyAlive[i])
+        {
+            bool booleanvalue = Vector2DistanceSqr(p->pos, rangedEnemyPositions[i]) < (200 * 200);
+            if (rangedEnemyShootingCooldowns[i] < EPSILON && booleanvalue)
+            {
+                ShootEnemyBullet(enemylightbullet, rangedEnemyPositions[i], Vector2Normalize(p->pos - rangedEnemyPositions[i]));
+                rangedEnemyShootingCooldowns[i] = RANGEDENEMYSHOOTINGCOOLDOWNSECONDS;
+            }
+            else if (booleanvalue)
+            {
+                rangedEnemyShootingCooldowns[i] -= physicsDTs;
+            }
+        }
+    }
+}
+
+
 #define MAX_ENEMIES 200
 typedef enum Enemy
 {
@@ -1001,6 +1107,8 @@ void LoadEnemyTextures()
     enemyTextureRight[regular] = LoadTexture("assets/lightenemy_right.png");
     enemyTextureLeft[heavy] = LoadTexture("assets/heavyenemy_left.png");
     enemyTextureRight[heavy] = LoadTexture("assets/heavyenemy_right.png");
+    rangedEnemyTexture = LoadTexture("assets/rangedenemy.png");
+    specialItemTex = LoadTexture("assets/specialitem.png");
 }
 
 // debug info
@@ -1089,107 +1197,107 @@ bool EnemyCollidingAt(int enemyidx, Vector2 pos, Solid* solids, int solidCount)
 void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
 {
     // Iterate through each enemy to process their physics
-    for (int i = 0; i < enemyCount; i++)
-    {
-        // Check if the enemy is not dead
-        if (!enemyDead[i])
-        {
-            // If the enemy's health is less than 1, mark it as dead and set a respawn timer
-            if (enemyHealth[i] < 1)
-            {
-                enemySpawnTimers[i] = ENEMYSPAWNCOOLDOWNSECONDS;
-                enemyDead[i] = true;
-                p->score += enemyScore[enemyTypes[i]];
-                AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
-                aliveEnemyCount--;
-                continue;
-            }
-            if (!enemyFlying[i] && !enemyOnGround[i])
-            {
-                if (!EnemyCollidingAt(i, enemyPositions[i] + (Vector2){0, 1}, solids, solidCount))
-                {
-                    enemyPositions[i].y += 1;
-                }
-                else
-                {
-                    enemyOnGround[i] = true;
-                }
-                continue;
-            }
+    // for (int i = 0; i < enemyCount; i++)
+    // {
+    //     // Check if the enemy is not dead
+    //     if (!enemyDead[i])
+    //     {
+    //         // If the enemy's health is less than 1, mark it as dead and set a respawn timer
+    //         if (enemyHealth[i] < 1)
+    //         {
+    //             enemySpawnTimers[i] = ENEMYSPAWNCOOLDOWNSECONDS;
+    //             enemyDead[i] = true;
+    //             p->score += enemyScore[enemyTypes[i]];
+    //             AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
+    //             aliveEnemyCount--;
+    //             continue;
+    //         }
+    //         if (!enemyFlying[i] && !enemyOnGround[i])
+    //         {
+    //             if (!EnemyCollidingAt(i, enemyPositions[i] + (Vector2){0, 1}, solids, solidCount))
+    //             {
+    //                 enemyPositions[i].y += 1;
+    //             }
+    //             else
+    //             {
+    //                 enemyOnGround[i] = true;
+    //             }
+    //             continue;
+    //         }
 
 
-            enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
-            int moveX = Round(enemyMovementRemainders[i].x);
-            if (moveX != 0)
-            {
-                enemyMovementRemainders[i].x -= moveX;
-                int sign = Sign(moveX);
-                while (moveX != 0)
-                {
-                    Vector2 newPos = enemyPositions[i] + (Vector2){(float)sign, 0};
-                    if (!EnemyCollidingAt(i, newPos, solids, solidCount))
-                    {
-                        enemyPositions[i].x += sign;
-                        moveX -= sign;
-                    }
-                    else
-                    {
-                        enemyDirections[i] *= -1;
-                        break;
-                    }
-                }
-            }
+    //         enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
+    //         int moveX = Round(enemyMovementRemainders[i].x);
+    //         if (moveX != 0)
+    //         {
+    //             enemyMovementRemainders[i].x -= moveX;
+    //             int sign = Sign(moveX);
+    //             while (moveX != 0)
+    //             {
+    //                 Vector2 newPos = enemyPositions[i] + (Vector2){(float)sign, 0};
+    //                 if (!EnemyCollidingAt(i, newPos, solids, solidCount))
+    //                 {
+    //                     enemyPositions[i].x += sign;
+    //                     moveX -= sign;
+    //                 }
+    //                 else
+    //                 {
+    //                     enemyDirections[i] *= -1;
+    //                     break;
+    //                 }
+    //             }
+    //         }
 
-            enemyMovementRemainders[i].y += enemySpeeds[enemyTypes[i]];
-            int moveY = Round(enemyMovementRemainders[i].y);
-            if (moveY != 0)
-            {
-                enemyMovementRemainders[i].y -= moveY;
-                int sign = Sign(moveY);
-                while (moveY != 0)
-                {
-                    Vector2 newPos = enemyPositions[i] + (Vector2){0, (float)sign};
-                    if (!EnemyCollidingAt(i, newPos, solids, solidCount))
-                    {
-                        enemyPositions[i].y += sign;
-                        moveY -= sign;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
+    //         enemyMovementRemainders[i].y += enemySpeeds[enemyTypes[i]];
+    //         int moveY = Round(enemyMovementRemainders[i].y);
+    //         if (moveY != 0)
+    //         {
+    //             enemyMovementRemainders[i].y -= moveY;
+    //             int sign = Sign(moveY);
+    //             while (moveY != 0)
+    //             {
+    //                 Vector2 newPos = enemyPositions[i] + (Vector2){0, (float)sign};
+    //                 if (!EnemyCollidingAt(i, newPos, solids, solidCount))
+    //                 {
+    //                     enemyPositions[i].y += sign;
+    //                     moveY -= sign;
+    //                 }
+    //                 else
+    //                 {
+    //                     break;
+    //                 }
+    //             }
+    //         }
 
-            // Push players out of the way
+    //         // Push players out of the way
 
-            // Check if colliding with the player, if so, push the player
-            AABB enemyAABB = {.max = enemyPositions[i] + (enemySize[enemyTypes[i]] / 2), .min = enemyPositions[i] - (enemySize[enemyTypes[i]] / 2)};
-            AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
-            if (AABBsColliding(enemyAABB, playerAABB))
-            {
-                Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
-                p->damageimpulse = pushDir * 5;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
-                p->health -= enemyHealth[i]; // Adjust the damage as needed
-                p->lasthittaken = time;
-            }
+    //         // Check if colliding with the player, if so, push the player
+    //         AABB enemyAABB = {.max = enemyPositions[i] + (enemySize[enemyTypes[i]] / 2), .min = enemyPositions[i] - (enemySize[enemyTypes[i]] / 2)};
+    //         AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
+    //         if (AABBsColliding(enemyAABB, playerAABB))
+    //         {
+    //             Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
+    //             p->damageimpulse = pushDir * 5;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
+    //             p->health -= enemyHealth[i]; // Adjust the damage as needed
+    //             p->lasthittaken = time;
+    //         }
 
-        }
-        else if (enemyDead[i]) // If the enemy is dead
-        {
-            // Decrease the respawn timer
-            enemySpawnTimers[i] -= physicsDTs;
-            // If the respawn timer has run out, respawn the enemy
-            if (enemySpawnTimers[i] < 0 + EPSILON)
-            {
-                enemySpawnTimers[i] = 0;
-                enemyHealth[i] = enemyMaxHealth[enemyTypes[i]];
-                enemyPositions[i] = enemySpawnPoints[i] * TMSIZE;
-                enemyDead[i] = false;
-                aliveEnemyCount++;
-            }
-        }
-    }
+    //     }
+    //     else if (enemyDead[i]) // If the enemy is dead
+    //     {
+    //         // Decrease the respawn timer
+    //         enemySpawnTimers[i] -= physicsDTs;
+    //         // If the respawn timer has run out, respawn the enemy
+    //         if (enemySpawnTimers[i] < 0 + EPSILON)
+    //         {
+    //             enemySpawnTimers[i] = 0;
+    //             enemyHealth[i] = enemyMaxHealth[enemyTypes[i]];
+    //             enemyPositions[i] = enemySpawnPoints[i] * TMSIZE;
+    //             enemyDead[i] = false;
+    //             aliveEnemyCount++;
+    //         }
+    //     }
+    // }
 }
 
 void RenderEnemies(Camera2D camera)
@@ -1256,14 +1364,49 @@ void LoadTilemap(const char* path)
                     Vector2 shipBatterySlotPositions[BATTERIESNEEDEDFORSHIP] = {};
                     break;
                 }
+                case '%':
+                {
+                    // boss
+                    break;
+                }
+                case 'M':
+                {
+                    maxHeight = y * TMSIZE;
+                    break;
+                }
+                case 'm':
+                {
+                    minHeight = y * TMSIZE;
+                    break;
+                }
                 case '.':
                 {
                     t = empty;
                     break;
                 }
+                case 'r':
+                {
+                    rangedEnemyAlive[rangedEnemyCount] = true;
+                    rangedEnemyShootingCooldowns[rangedEnemyCount] = 0;
+                    rangedEnemyPositions[rangedEnemyCount++] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                }
+                case 'P':
+                {
+
+                }
+                case 'C':
+                {
+
+                }
                 case '#':
                 {
                     t = stone;
+                    break;
+                }
+                case '*':
+                {
+                    specialItemPos = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
                 }
                 case 'B':
@@ -1370,14 +1513,16 @@ void BreakTile(int x, int y)
     2,
     6,
     3,
+    2, // enemy light bulet
 };
 
 float bulletDamage[bulletcount] =
 {
     0,
-    4,
-    10,
-    4,
+    5,
+    12,
+    5,
+    5,
 };
 
 void SetBulletDamages()
@@ -1394,13 +1539,7 @@ void SetBulletDamages()
     // printf("heavybullet damage = %f\n", bulletDamage[heavybullet]);
 }
 
-float bulletSpeed[bulletcount] =
-{
-    0,
-    500,
-    200,
-    350,
-};
+
 
 Texture bulletTexture[bulletcount] =
 { };
@@ -1410,13 +1549,8 @@ void LoadBulletTextures()
     bulletTexture[lightbullet] = LoadTexture("assets/lightbullet.png");
     bulletTexture[heavybullet] = LoadTexture("assets/heavybullet.png");
     bulletTexture[normalbullet] = LoadTexture("assets/regularbullet.png");
+    bulletTexture[enemylightbullet] = LoadTexture("assets/enemylightbullet.png");
 }
-
-#define MAX_BULLETS 200
-Bullet bulletsTs[MAX_BULLETS] = {none};
-Vector2 bulletsVs[MAX_BULLETS] = {0};
-Vector2 bulletsPs[MAX_BULLETS] = {0};
-int bulletCount = 0;
 
 void SpawnBullet(Bullet bulletType, float posx, float posy, float velx, float vely)
 {
@@ -1452,7 +1586,7 @@ void DrawBullets()
     }
 }
 
-void BulletPhysicsProcess()
+void BulletPhysicsProcess(Player* p, double time)
 {
     // Move bullets
     for (int i = 0; i < bulletCount; i++)
@@ -1513,19 +1647,43 @@ void BulletPhysicsProcess()
                 }
             }
 
-            // enemy collisions
-            for (int j = 0; j < enemyCount; j++)
+
+            if (bulletsTs[i] != enemylightbullet)
             {
-                if (!enemyDead[j])
+                // enemy collisions
+                for (int j = 0; j < enemyCount; j++)
                 {
-                    Rectangle enemyRect = {enemyPositions[j].x - enemySize[enemyTypes[j]].x / 2, enemyPositions[j].y - enemySize[enemyTypes[j]].y / 2, enemySize[enemyTypes[j]].x, enemySize[enemyTypes[j]].y};
-                    if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], enemyRect))
+                    if (!enemyDead[j])
                     {
-                        enemyHealth[j] -= bulletDamage[bulletsTs[i]];
-                        KillBullet(i);
-                        break;
+                        Rectangle enemyRect = {enemyPositions[j].x - enemySize[enemyTypes[j]].x / 2, enemyPositions[j].y - enemySize[enemyTypes[j]].y / 2, enemySize[enemyTypes[j]].x, enemySize[enemyTypes[j]].y};
+                        if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], enemyRect))
+                        {
+                            enemyHealth[j] -= bulletDamage[bulletsTs[i]];
+                            KillBullet(i);
+                            break;
+                        }
                     }
                 }
+
+                // ranged enemy collisions
+                for (int j = 0; j < rangedEnemyCount; j++)
+                {
+                    Rectangle rangedEnemyRect = {rangedEnemyPositions[j].x, rangedEnemyPositions[j].y, 16, 16};
+                    if (CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], rangedEnemyRect))
+                    {
+                        rangedEnemyAlive[j] = false;
+                        KillBullet(i);
+                    }
+                }
+            }
+
+            if (bulletsTs[i] == enemylightbullet && CheckCollisionCircleRec(bulletsPs[i], bulletRadius[bulletsTs[i]], GetPlayerRect(*p)))
+            {
+                // we (the enemy bullet) are colliding with the player
+                p->damageimpulse = Vector2Normalize(bulletsVs[i]) * 5;
+                p->lastBulletHitTaken = time;
+                p->lasthittaken = time;
+                KillBullet(i);
             }
         }
     }
@@ -1710,7 +1868,7 @@ void MoveY(Player* a, float amount, Solid* solids, int solidCount)
     }
 }
 
-#define COYOTE_S 0.2
+#define COYOTE_S 0.1
 #define JUMP_B_S 0.2
 
 void TryJump(Player* p, double time)
@@ -1731,6 +1889,7 @@ void TryJump(Player* p, double time)
     && p->canDoubleJump)
     {
         p->vel.y = p->doubleJumpVel;
+        p->persistentVel.x = DOUBLEJUMPSIDEWAYSBONUSVELMULTIPLIER;
         p->pressedJump = false;
         p->jumpCount++;
         p->timeLastJumped = time;
@@ -1781,6 +1940,7 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
         if (PlayerCollidingAt(p, {p->pos.x, p->pos.y + 1}, solids, solidCount))
         {
             p->grounded = true;
+            p->persistentVel = {0};
             p->timeLastOnGround = time;
             p->jumpCount = 0;
             // i don't know if this needs to be here, but just in case, set velocity to 0 if we are on ground
@@ -1808,6 +1968,7 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     }
 
     PlayerInput(p, time);
+    if (p->persistentVel.x != 0) p->vel.x *= p->persistentVel.x;
 
     // Spike standing logic
     {
@@ -1827,16 +1988,25 @@ void PlayerPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     }
     // Hit-taking logic
     {
-        if (time - p->lasthittaken < DAMAGETINTDURATION)
         {
-            double timeleft = DAMAGETINTDURATION - (time - p->lasthittaken);
-            p->tint = (Color){(unsigned char)(255 * timeleft * 10), 0, 0, 0xff};
+            if (time - p->lasthittaken < DAMAGETINTDURATION)
+            {
+                double timeleft = DAMAGETINTDURATION - (time - p->lasthittaken);
+                p->tint = (Color){(unsigned char)(255 * timeleft * 10), 0, 0, 0xff};
+            }
+            else // if the damage tint duration is done
+            {
+                p->tint = WHITE;
+                // reset the damage impulse
+                p->damageimpulse = {};
+            }
         }
-        else // if the damage tint duration is done
         {
-            p->tint = WHITE;
-            // reset the damage impulse
-            p->damageimpulse = {};
+            if (p->bulletHitNotAccountedFor && time - p->lastBulletHitTaken > DAMAGETINTDURATION)
+            {
+                p->health -= bulletDamage[p->lastBulletHitType];
+                p->bulletHitNotAccountedFor = false;
+            }
         }
     }
     // Impulse logic (not actual impulse idk what that is)
@@ -2005,9 +2175,13 @@ void LoadGame()
         showingShipBatterySlotSelectionMessage = false;
         showingShipPlaceBatteryMessage = false;
         shipSlot = 0;
+        specialItemPos = {0};
+        foundSpecialItem = false;
+        rangedEnemyCount = 0;
+
     }
 
-    LoadTilemap("devtilemap.txt");
+    LoadTilemap("map.txt");
     LoadDoors();
 
     SetEnemyStatsProperBecauseInitValueNotWorking();
@@ -2030,7 +2204,8 @@ void LoadGame()
         p.aabb.max = p.pos + (p.size/2);
         p.aabb.min = p.pos - (p.size/2);
         p.speed = NORMALSPEED;
-        p.jumpVel = -3;
+        p.jumpVel = NORMALJUMPVEL;
+        p.persistentVel = {};
         p.doubleJumpVel = DOUBLEJUMPVEL;
         p.maxJumps = 1;
         p.bullettype = normalbullet; // none = normal
@@ -2046,8 +2221,15 @@ void LoadGame()
     {
         camera.zoom = 4;
         camera.rotation = 0;
-        camera.offset = {windowWidth / 2.f, windowHeight / 2.f + 180};
+        camera.offset = {windowWidth / 2.f, windowHeight / 2.f + 90};
         camera.target = {0};
+    }
+
+    {
+        specialCamera.zoom = 1;
+        specialCamera.rotation = 0;
+        specialCamera.offset = {windowWidth / 2.f, windowHeight / 2.f};
+        camera.target = {};
     }
 
     // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);

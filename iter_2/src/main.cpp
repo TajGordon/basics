@@ -28,20 +28,31 @@ int main(void)
     {
         switch (gamestate)
         {
+            case reload:
+            {
+                LoadGame();
+                gamestate = running;
+            }
             case running:
             {
                 float dt = GetFrameTime();
                 physicsAccumulator += dt;
 
+                if (IsKeyPressed(KEY_R))
+                {
+                    gamestate = reload;
+                }
+
                 // Physics update
                 double time = GetTime();
-                if (physicsAccumulator > physicsDTs)
+                if (physicsAccumulator >= physicsDTs)
                 {
                     physicsAccumulator -= physicsDTs;
                     /*-------------------------*/
                     TickDisplayMessagesTimers();
                     EnemyPhysicsProcess(&p, solids, solidCount, time);
-                    BulletPhysicsProcess();
+                    RangedEnemiesPhysicsProcess(&p);
+                    BulletPhysicsProcess(&p, time);
                     PlayerPhysicsProcess(&p, solids, solidCount, time);
                 }
                 // Render update
@@ -55,10 +66,15 @@ int main(void)
                         p.timeLastJumpPressed = GetTime();
                     }
                 }
+                // (p.pos.y / minHeight) = % down we are
+                // when we are at minheight (the bottom), its 255 * (1 - (1)) = black
+                float depthfactor = (1 - (p.pos.y / minHeight) * 0.8);
+                unsigned char blueamount = 255 * depthfactor;
                 // Rendering
                 BeginDrawing();
                 {
-                    ClearBackground(BLUE);
+                    // SKYBLUE
+                    ClearBackground({0, 0, blueamount, 0xff});
 
                     BeginMode2D(camera);
                     {
@@ -67,8 +83,10 @@ int main(void)
                         RenderShip(camera, &p);
                         DrawBatteries(&p, camera, time);
                         RenderDoors(camera, &p);
+                        RenderSpecialItem(&p, camera);
                         RenderDisplayMessages();
                         RenderEnemies(camera);
+                        RenderRangedEnemies(camera);
                         DrawBullets();
                         DrawPlayer(p);
                     }
@@ -177,6 +195,71 @@ int main(void)
                     }
                 }
                 EndDrawing();
+                exitWindow = WindowShouldClose();
+
+                break;
+            }
+            case specialitem:
+            {
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
+                {
+                    gamestate = running;
+                }
+                if (IsKeyPressed(KEY_C))
+                {
+                    exitWindow = true;
+                }
+                static int specialfontsize = 1;
+                float dt = GetFrameTime();
+                {
+                    {
+                        static int something = 1;
+                        if (specialCamera.zoom < EPSILON) something = 1;
+                        else if (specialCamera.zoom > 16) something = -1;
+                        specialCamera.zoom += 10 * dt * something;
+                    }
+                    {
+                        static int something = 1;
+                        if (specialCamera.rotation < EPSILON) something = 1;
+                        else if (specialCamera.rotation > 720) something = -1;
+                        specialCamera.rotation += 50 * dt * something;
+                    }
+                    {
+                        static int something = 1;
+                        if (specialfontsize <= 2) something = 1;
+                        else if (specialfontsize >= 100) something = -1;
+                        specialfontsize += something * 5 * dt;
+                    }
+                }
+                const char* text = "YOU FOUND A SPECIAL ITEM";
+                int textoffset = MeasureText(text, specialfontsize)/2;
+                static double timer = 0;
+                timer += 2 * dt;
+                bool showmessage = (timer < 0.5);
+
+                if (timer > 1)
+                {
+                    timer = 0;
+                }
+
+                BeginDrawing();
+                {
+                    ClearBackground(GOLD);
+                    BeginMode2D(specialCamera);
+                    {
+                        if (showmessage)
+                        {
+                            DrawText(text, 0 - textoffset, 0, specialfontsize, BLACK);
+                        }
+                        else
+                        {
+                            DrawText(text, 0 - textoffset, 0, specialfontsize, WHITE);
+                        }
+                    }
+                    EndMode2D();
+                }
+                EndDrawing();
+
                 exitWindow = WindowShouldClose();
 
                 break;
