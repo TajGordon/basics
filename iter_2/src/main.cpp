@@ -20,12 +20,12 @@ int main(void)
 
     LoadTileTextures();
     LoadBulletTextures();
+    LoadBatteryTexture();
+    LoadEnemyTextures();
 
-
-    bool exitWindow = 0;
+    bool exitWindow = false;
     while (!exitWindow)
     {
-        if (WindowShouldClose()) exitWindow = true;
         switch (gamestate)
         {
             case running:
@@ -66,9 +66,9 @@ int main(void)
                         DrawSolids(solids, solidCount);
                         RenderShip(camera, &p);
                         DrawBatteries(&p, camera, time);
-                        RenderEnemies();
                         RenderDoors(camera, &p);
                         RenderDisplayMessages();
+                        RenderEnemies(camera);
                         DrawBullets();
                         DrawPlayer(p);
                     }
@@ -82,9 +82,10 @@ int main(void)
                     // DrawText(TextFormat("Player.health: %d", p.health), 20, 140, 40, RED);
                     // DrawText(TextFormat("Player.score: %d", p.score), 20, 260, 40, RED);
                     // DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
-                    // DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
+                    DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
                 }
                 EndDrawing();
+                exitWindow = WindowShouldClose();
                 break;
             }
             case gameover:
@@ -95,10 +96,7 @@ int main(void)
                     newtopscoreflag = 0;
                 }
                 if (IsKeyPressed(KEY_C))
-                {
-                    exitWindow = true;
-                }
-
+                { exitWindow = true; }
                 BeginDrawing();
                 {
                     ClearBackground(BLACK);
@@ -117,10 +115,12 @@ int main(void)
                     }
                 }
                 EndDrawing();
+                exitWindow = WindowShouldClose();
                 break;
             }
             case gameloadingscreen:
             {
+                exitWindow = WindowShouldClose();
                 if (IsKeyPressed(KEY_O))
                 {
                     LoadGame();
@@ -177,6 +177,7 @@ int main(void)
                     }
                 }
                 EndDrawing();
+                exitWindow = WindowShouldClose();
 
                 break;
             }

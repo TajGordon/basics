@@ -2,14 +2,15 @@
 
 [] __FIX THE LAG__
 
+[] __Make enemies not walk off ledges__
+# maybe, could be interesting
+
 [] __Only 1 pickup message at a time__
-[] __Fix player floating__
 
 [] __Level map__
 
 [] __Use advanced math setting options__
 
-[] __Get Sprites__
 
 [] __Checkpoints / Save Stations__
 
@@ -34,6 +35,8 @@
 ### COMPLETED!!!
 
 [X] __Dying__
+[X] __Fix player floating__
+[X] __Get Sprites__
 
 [X] __Ship that causes you to Win the Game__
 [X] __Ability to Place Batteries in the Ship__

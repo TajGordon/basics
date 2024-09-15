@@ -64,6 +64,17 @@ bool AABBsColliding(AABB a, AABB b)
 const double physicsDTs = 1. / 60;
 
 
+Texture batteryTexture;
+Texture batterySlotTexture;
+Texture shipTexture;
+void LoadBatteryTexture()
+{
+    batteryTexture = LoadTexture("assets/battery.png");
+    batterySlotTexture = LoadTexture("assets/batteryslot.png");
+
+    shipTexture = LoadTexture("assets/ship.png");
+}
+
 float bulletDelays[bulletcount] =
 {
     0,
@@ -161,7 +172,6 @@ int showingMessageIndex = 0;
 #define BATTERIESNEEDEDFORSHIP 4
 Vector2 shipPosition = {};
 bool shipOpen = false;
-Vector2 shipBatterySlotPositions[BATTERIESNEEDEDFORSHIP] = {};
 bool shipBatterySlotHasBattery[BATTERIESNEEDEDFORSHIP] = {};
 Battery shipBatterySlotBatteryType[BATTERIESNEEDEDFORSHIP] = {};
 int numBatteriesInShip = 0;
@@ -172,16 +182,19 @@ bool batteryInShip[batterycount] = {};
 int shipBatteryCount = 0;
 #define SHIPBATTERYSLOTSIZE (Vector2){8, 12}
 
-bool showingShipBatterySlotMessage = false;
-int shipBatterySlotMessageIndex = 0;
+bool showingShipBatterySlotSelectionMessage = false;
+bool showingShipPlaceBatteryMessage = false;
+bool showingBatterySlotRemovalMessage = false;
+int shipSlot = 0;
 
 Color batteryColor[batterycount] =
 {
-    RED,
-    GREEN,
-    BLUE,
-    MAGENTA,
-    YELLOW,
+    YELLOW,// bigjump,
+    ORANGE,// doublejump,
+    BLUE,// rapidfire,
+    RED,// heavyfire,
+    GREEN,// quickie,
+    BROWN,// tanky,
 };
 
 void PlaceBatteryIntoShipKeyhole(Player* p, Battery batterytype, int idx)
@@ -254,7 +267,8 @@ void RenderShip(Camera2D camera, Player* p)
     // render ship itself
     // ship position is in the middle of a block
     Color shipColor = (shipOpen) ? GREEN : RED;
-    DrawRectangleV(shipPosition - 32, {64, 64}, shipColor);
+    // DrawRectangleV(shipPosition - 32, {64, 64}, shipColor);
+    DrawTexture(shipTexture, shipPosition.x - 64, shipPosition.y - 40, WHITE);
 
     #define SHIPINTERACTIONDISTANCE 50
     if (shipOpen && Vector2DistanceSqr(p->pos, shipPosition) < (SHIPINTERACTIONDISTANCE * SHIPINTERACTIONDISTANCE))
@@ -269,106 +283,176 @@ void RenderShip(Camera2D camera, Player* p)
             gamestate = win;
             timeswon++;
         }
+        // could let you take them out, but nah, "electric current holds them in place"
     }
-
-    // Draw ship battery slots
-    for (int i = 0; i < shipBatteryCount; i++)
+    else if (Vector2DistanceSqr(p->pos, shipPosition + (Vector2){TMSIZE, 0}) < (SHIPINTERACTIONDISTANCE * SHIPINTERACTIONDISTANCE))
     {
-        if (TileOnScreen(shipBatterySlotPositions[i] / TMSIZE, camera))
+        if (showingShipBatterySlotSelectionMessage)
         {
-            DrawRectangleLines(shipBatterySlotPositions[i].x, shipBatterySlotPositions[i].y, SHIPBATTERYSLOTSIZE.x, SHIPBATTERYSLOTSIZE.y, GOLD);
+            #define thisfontsize 12
+            const char* text = "Which slot would you like to place a battery into? \n '1' '2' '3' '4'\0";
+            int textOffset = MeasureText(text, thisfontsize)/2;
+            DrawText(text, p->pos.x - textOffset, p->pos.y - TMSIZE * 3, thisfontsize, WHITE);
 
-            if (shipBatterySlotHasBattery[i])
+            if (IsKeyPressed(KEY_ONE) && !didSomething)
             {
-                DrawRectangleV(shipBatterySlotPositions[i] + 1, SHIPBATTERYSLOTSIZE, batteryColor[shipBatterySlotBatteryType[i]]);
-            }
+                shipSlot = 0;
+                didSomething = true;
 
-            // Text interaction thingy
-            // if its close enough
-            if (Vector2DistanceSqr(p->pos, shipBatterySlotPositions[i]) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
-            {
-                if (shipBatterySlotHasBattery[i])
+                if (shipBatterySlotHasBattery[shipSlot])
                 {
-                    const char* text = "Press E to pickup battery\0";
-                    int textoffset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
-                    DrawText(text, shipBatterySlotPositions[i].x - textoffset, shipBatterySlotPositions[i].y - TMSIZE, INSERTBATTERYFONTSIZE, WHITE);
-
-                    if (IsKeyPressed(KEY_E) && !didSomething)
-                    {
-                        PickupBatteryFromShipKeyhole(p, i);
-                        didSomething = true;
-                    }
+                    showingBatterySlotRemovalMessage = true;
+                    showingShipBatterySlotSelectionMessage = false;
                 }
-                else // no battery atm
+                else
                 {
-                    if (showingShipBatterySlotMessage)
-                    {
-                        const char* text = "Press a key to insert a battery: ";
-                        if (batteryInUse[bigjump]) text = TextFormat("%s'1' bigjump ", text);
-                        if (batteryInUse[doublejump]) text = TextFormat("%s'2' doublejump ", text);
-                        if (batteryInUse[rapidfire]) text = TextFormat("%s'3' rapidfire ", text);
-                        if (batteryInUse[heavyfire]) text = TextFormat("%s'4' heavyfire ", text);
-                        if (batteryInUse[quickie]) text = TextFormat("%s'5' quickie ", text);
-                        if (batteryInUse[tanky]) text = TextFormat("%s'6' tanky ", text);
-                        int atleastone = (batteryInUse[bigjump] || batteryInUse[doublejump] || batteryInUse[rapidfire] || batteryInUse[heavyfire] || batteryInUse[quickie] || batteryInUse[tanky]);
-                        if (!atleastone) text = "You need a battery to do this!";
-                        int offset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
-                        DrawText(text, shipBatterySlotPositions[i].x - offset, shipBatterySlotPositions[i].y - TMSIZE, INSERTBATTERYFONTSIZE, WHITE);
-
-                        if (atleastone)
-                        {
-                            if (IsKeyPressed(KEY_ONE) && batteryInUse[bigjump]) {
-                                PlaceBatteryIntoShipKeyhole(p, bigjump, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                            else if (IsKeyPressed(KEY_TWO) && batteryInUse[doublejump]) {
-                                PlaceBatteryIntoShipKeyhole(p, doublejump, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                            else if (IsKeyPressed(KEY_THREE) && batteryInUse[rapidfire]) {
-                                PlaceBatteryIntoShipKeyhole(p, rapidfire, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                            else if (IsKeyPressed(KEY_FOUR) && batteryInUse[heavyfire]) {
-                                PlaceBatteryIntoShipKeyhole(p, heavyfire, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                            else if (IsKeyPressed(KEY_FIVE) && batteryInUse[quickie]) {
-                                PlaceBatteryIntoShipKeyhole(p, quickie, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                            else if (IsKeyPressed(KEY_SIX) && batteryInUse[tanky]) {
-                                PlaceBatteryIntoShipKeyhole(p, tanky, i);
-                                showingShipBatterySlotMessage = false;
-                                didSomething = true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        const char* text = "Press 'E' to place battery\0";
-                        int offset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
-                        DrawText(text, shipBatterySlotPositions[i].x - offset, shipBatterySlotPositions[i].y - TMSIZE, INSERTBATTERYFONTSIZE, WHITE);
-
-                        if (IsKeyPressed(KEY_E) && !didSomething && !showingShipBatterySlotMessage)
-                        {
-                            showingShipBatterySlotMessage = true;
-                            shipBatterySlotMessageIndex = i;
-                            didSomething = true;
-                        }
-                    }
+                    showingShipBatterySlotSelectionMessage = false;
+                    showingShipPlaceBatteryMessage = true;
                 }
             }
-            else if (showingShipBatterySlotMessage && showingMessageIndex == i && !didSomething)
+            else if (IsKeyPressed(KEY_TWO) && !didSomething)
             {
-                showingShipBatterySlotMessage = false;
+                shipSlot = 1;
+                didSomething = true;
+
+                if (shipBatterySlotHasBattery[shipSlot])
+                {
+                    showingBatterySlotRemovalMessage = true;
+                    showingShipBatterySlotSelectionMessage = false;
+                }
+                else
+                {
+                    showingShipBatterySlotSelectionMessage = false;
+                    showingShipPlaceBatteryMessage = true;
+                }
+            }
+            else if (IsKeyPressed(KEY_THREE) && !didSomething)
+            {
+                shipSlot = 2;
+                didSomething = true;
+
+                if (shipBatterySlotHasBattery[shipSlot])
+                {
+                    showingBatterySlotRemovalMessage = true;
+                    showingShipBatterySlotSelectionMessage = false;
+                }
+                else
+                {
+                    showingShipBatterySlotSelectionMessage = false;
+                    showingShipPlaceBatteryMessage = true;
+                }
+            }
+            else if (IsKeyPressed(KEY_FOUR) && !didSomething)
+            {
+                shipSlot = 3;
+                didSomething = true;
+
+                if (shipBatterySlotHasBattery[shipSlot])
+                {
+                    showingBatterySlotRemovalMessage = true;
+                    showingShipBatterySlotSelectionMessage = false;
+                }
+                else
+                {
+                    showingShipBatterySlotSelectionMessage = false;
+                    showingShipPlaceBatteryMessage = true;
+                }
             }
         }
+        else if (showingShipPlaceBatteryMessage)
+        {
+            const char* text = "Press a key to insert a battery: \n";
+            if (batteryInUse[bigjump]) text = TextFormat("%s'1' bigjump ", text);
+            if (batteryInUse[doublejump]) text = TextFormat("%s'2' doublejump ", text);
+            if (batteryInUse[rapidfire]) text = TextFormat("%s'3' rapidfire ", text);
+            if (batteryInUse[heavyfire]) text = TextFormat("%s'4' heavyfire ", text);
+            if (batteryInUse[quickie]) text = TextFormat("%s'5' quickie ", text);
+            if (batteryInUse[tanky]) text = TextFormat("%s'6' tanky ", text);
+            int atleastone = (batteryInUse[bigjump] || batteryInUse[doublejump] || batteryInUse[rapidfire] || batteryInUse[heavyfire] || batteryInUse[quickie] || batteryInUse[tanky]);
+            if (!atleastone) text = "You need a battery to do this!";
+            int textOffset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
+            DrawText(text, p->pos.x - textOffset, p->pos.y - TMSIZE * 4, thisfontsize, WHITE);
+
+            if (atleastone)
+            {
+                if (IsKeyPressed(KEY_ONE) && batteryInUse[bigjump])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, bigjump, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+                else if (IsKeyPressed(KEY_TWO) && batteryInUse[doublejump])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, doublejump, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+                else if (IsKeyPressed(KEY_THREE) && batteryInUse[rapidfire])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, rapidfire, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+                else if (IsKeyPressed(KEY_FOUR) && batteryInUse[heavyfire])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, heavyfire, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+                else if (IsKeyPressed(KEY_FIVE) && batteryInUse[quickie])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, quickie, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+                else if (IsKeyPressed(KEY_SIX) && batteryInUse[tanky])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, tanky, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
+            }
+        }
+        else if (showingBatterySlotRemovalMessage)
+        {
+            const char* text = "This battery slot already has a battery\0";
+            const char* subtitle = "Press E to pick it up\0";
+            int textoffset = MeasureText(text, thisfontsize)/2;
+            int subtextoffset = MeasureText(subtitle, thisfontsize)/2;
+            DrawText(text, p->pos.x - textoffset, p->pos.y - TMSIZE * 3, thisfontsize, WHITE);
+            DrawText(subtitle, p->pos.x - subtextoffset, p->pos.y - TMSIZE * 2, thisfontsize, WHITE);
+
+            if (IsKeyPressed(KEY_E) && !didSomething)
+            {
+                PickupBatteryFromShipKeyhole(p, shipSlot);
+                didSomething = true;
+                showingBatterySlotRemovalMessage = false;
+            }
+        }
+        else
+        {
+            const char* text = "Press E to place a battery\0";
+            int textOffset = MeasureText(text, thisfontsize)/2;
+            DrawText(text, p->pos.x - textOffset, p->pos.y - TMSIZE * 3, thisfontsize, WHITE);
+
+            if (IsKeyPressed(KEY_E) && !didSomething)
+            {
+                showingShipBatterySlotSelectionMessage = true;
+                didSomething = true;
+            }
+        }
+    }
+    else if (showingShipPlaceBatteryMessage || showingShipBatterySlotSelectionMessage || showingBatterySlotRemovalMessage)
+    {
+        showingShipPlaceBatteryMessage = false;
+        showingShipBatterySlotSelectionMessage = false;
+        showingBatterySlotRemovalMessage = false;
     }
 }
 
@@ -377,10 +461,6 @@ void RenderShip(Camera2D camera, Player* p)
 /*****************/
 // jump velocity needs to be negative retard
 
-Texture batteryTextures[batterycount] =
-{
-
-};
 
 
 void DropBattery(Player* p, Battery battery)
@@ -392,7 +472,7 @@ void DropBattery(Player* p, Battery battery)
         {
             batteryInUse[bigjump] = false;
             batteryPositions[bigjump] = (Vector2){p->pos.x, p->pos.y - Round(TMSIZE / 2)};
-            printf("Dropped bigjump battery\n");
+            // printf("Dropped bigjump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -401,7 +481,7 @@ void DropBattery(Player* p, Battery battery)
         {
             batteryInUse[doublejump] = false;
             batteryPositions[doublejump] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
-            printf("Dropped doublejump battery\n");
+            // printf("Dropped doublejump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -518,8 +598,8 @@ void DrawBatteries(Player* p, Camera2D camera, double time)
         {
             if (TileOnScreen(batteryPositions[i] / TMSIZE, camera))
             {
-                DrawTextureV(batteryTextures[i], batteryPositions[i], WHITE);
-                DrawRectangleV(batteryPositions[i], {5.f, 8.f}, LIGHTGRAY);
+                DrawTextureV(batteryTexture, batteryPositions[i] - (Vector2){5, 3}, batteryColor[i]);
+                // DrawRectangleV(batteryPositions[i], {5.f, 8.f}, LIGHTGRAY);
             }
             if (Vector2DistanceSqr(batteryPositions[i], p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
             {
@@ -656,7 +736,7 @@ void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
             batteryInUse[bigjump] = false;
             batteryInDoor[bigjump] = true;
             batteryPositions[bigjump] = (Vector2){p->pos.x, p->pos.y - Round(TMSIZE / 2)};
-            printf("Dropped bigjump battery\n");
+            // printf("Dropped bigjump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -666,7 +746,7 @@ void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
             batteryInUse[doublejump] = false;
             batteryInDoor[doublejump] = true;
             batteryPositions[doublejump] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
-            printf("Dropped doublejump battery\n");
+            // printf("Dropped doublejump battery\n");
             p->jumpVel = NORMALJUMPVEL;
             p->maxJumps = 1;
             break;
@@ -723,7 +803,10 @@ void RenderDoors(Camera2D camera, Player* p)
         // keyhole
         if (TileOnScreen(doorKeyPos[i], camera))
         {
-            DrawRectangleV(doorKeyPos[i] * TMSIZE, {8, 12}, LIGHTGRAY);
+            // DrawRectangleV(doorKeyPos[i] * TMSIZE, {8, 12}, LIGHTGRAY);
+            DrawTexture(batterySlotTexture, doorKeyPos[i].x * TMSIZE, doorKeyPos[i].y * TMSIZE, WHITE);
+            if (doorKeyholeHasBattery[i])
+            { DrawTextureV(batteryTexture, doorKeyPos[i] * TMSIZE, batteryColor[doorKeyholebattery[i]]); }
 
             if (Vector2DistanceSqr(doorKeyPos[i] * TMSIZE, p->pos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE) && !didSomething)
             {
@@ -827,20 +910,20 @@ typedef enum Enemy
 float enemySpeeds[enemytypecount] =
 {
     1,
-    0.5,
+    1,
     0,
 };
 
 float enemyMaxHealth[enemytypecount] =
 {
     10,
-    20,
+    40,
     50,
 };
 
 Vector2 enemySize[enemytypecount] =
 {
-    {8, 10},
+    {10, 16},
     {10, 16},
     {20, 20},
 };
@@ -857,6 +940,12 @@ int enemyScore[enemytypecount] =
     100,
     300,
     1000,
+};
+
+Vector2 enemyOffsets[enemytypecount] =
+{
+    {8, 8},
+    {8, 24},
 };
 
 #define ENEMYSPAWNCOOLDOWNSECONDS 300
@@ -876,6 +965,17 @@ int enemyHealth[MAX_ENEMIES] = {};
 bool enemyDead[MAX_ENEMIES] = {};
 Enemy enemyTypes[MAX_ENEMIES] = {};
 int enemyCount = 0;
+
+Texture enemyTextureLeft[enemytypecount] = { };
+Texture enemyTextureRight[enemytypecount] = { };
+
+void LoadEnemyTextures()
+{
+    enemyTextureLeft[regular] = LoadTexture("assets/lightenemy_left.png");
+    enemyTextureRight[regular] = LoadTexture("assets/lightenemy_right.png");
+    enemyTextureLeft[heavy] = LoadTexture("assets/heavyenemy_left.png");
+    enemyTextureRight[heavy] = LoadTexture("assets/heavyenemy_right.png");
+}
 
 // debug info
 int aliveEnemyCount = 0;
@@ -976,8 +1076,8 @@ void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
                 p->score += enemyScore[enemyTypes[i]];
                 AddDisplayMessage(enemyPositions[i] - (Vector2){0, TMSIZE}, 1, TextFormat("+%d", enemyScore[enemyTypes[i]]));
                 aliveEnemyCount--;
+                continue;
             }
-
             if (!enemyFlying[i] && !enemyOnGround[i])
             {
                 if (!EnemyCollidingAt(i, enemyPositions[i] + (Vector2){0, 1}, solids, solidCount))
@@ -988,7 +1088,9 @@ void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
                 {
                     enemyOnGround[i] = true;
                 }
+                continue;
             }
+
 
             enemyMovementRemainders[i].x += enemySpeeds[enemyTypes[i]] * enemyDirections[i];
             int moveX = Round(enemyMovementRemainders[i].x);
@@ -1040,10 +1142,8 @@ void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
             AABB playerAABB = {.max = p->pos + (p->size / 2), .min = p->pos - (p->size / 2)};
             if (AABBsColliding(enemyAABB, playerAABB))
             {
-                #define ENEMYHORIZONTALKNOCKBACKFORCE 5
-                #define ENEMYVERTICALKNOCKBACKFORCE 4
                 Vector2 pushDir = Vector2Normalize(p->pos - enemyPositions[i]);
-                p->damageimpulse = pushDir * 2;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
+                p->damageimpulse = pushDir * 5;// (Vector2){ENEMYHORIZONTALKNOCKBACKFORCE, 1.5}; // Adjust the push strength as needed
                 p->health -= enemyHealth[i]; // Adjust the damage as needed
                 p->lasthittaken = time;
             }
@@ -1066,13 +1166,17 @@ void EnemyPhysicsProcess(Player* p, Solid* solids, int solidCount, double time)
     }
 }
 
-void RenderEnemies()
+void RenderEnemies(Camera2D camera)
 {
     for (int i = 0; i < enemyCount; i++)
     {
-        if (!enemyDead[i])
+        if (!enemyDead[i] && TileOnScreen(enemyPositions[i]/TMSIZE, camera))
         {
-            DrawRectangleV(enemyPositions[i] - enemySize[enemyTypes[i]] / 2, enemySize[enemyTypes[i]], enemyColor[enemyTypes[i]]);
+            if (enemyDirections[i] < 1)
+            { DrawTexture(enemyTextureLeft[enemyTypes[i]], enemyPositions[i].x - enemyOffsets[enemyTypes[i]].x, enemyPositions[i].y - enemyOffsets[enemyTypes[i]].y, WHITE); }
+            else { DrawTexture(enemyTextureRight[enemyTypes[i]], enemyPositions[i].x - enemyOffsets[enemyTypes[i]].x, enemyPositions[i].y - enemyOffsets[enemyTypes[i]].y, WHITE); }
+            // debug info
+            // DrawRectangleV(enemyPositions[i] - enemySize[enemyTypes[i]] / 2, enemySize[enemyTypes[i]], enemyColor[enemyTypes[i]] * 0.7);
         }
     }
 }
@@ -1123,11 +1227,7 @@ void LoadTilemap(const char* path)
                 case 'S':
                 {
                     shipPosition = (Vector2){(float)x, (float)y} * TMSIZE + (int)TMSIZE/2;
-                    break;
-                }
-                case '+':
-                {
-                    shipBatterySlotPositions[shipBatteryCount++] = (Vector2){(float)x, (float)y} * TMSIZE;
+                    Vector2 shipBatterySlotPositions[BATTERIESNEEDEDFORSHIP] = {};
                     break;
                 }
                 case '.':
@@ -1809,7 +1909,6 @@ void LoadGame()
     {
 
         for (int i = 0; i < BATTERIESNEEDEDFORSHIP; i++) {
-            shipBatterySlotPositions[i] = {0};
             shipBatterySlotHasBattery[i] = false;
             shipBatterySlotBatteryType[i] = bigjump;
         }
@@ -1877,8 +1976,9 @@ void LoadGame()
         }
         bulletCount = 0;
         shipBatteryCount = 0;
-        showingShipBatterySlotMessage = false;
-        shipBatterySlotMessageIndex = 0;
+        showingShipBatterySlotSelectionMessage = false;
+        showingShipPlaceBatteryMessage = false;
+        shipSlot = 0;
     }
 
     LoadTilemap("devtilemap.txt");
@@ -1891,10 +1991,10 @@ void LoadGame()
     }
 
     SetBulletDamages();
-    for (int i = 0; i < enemyCount; i++)
-    {
-        printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
-    }
+    // for (int i = 0; i < enemyCount; i++)
+    // {
+        // printf("Enemy %d: Direction = %d\n", i, enemyDirections[i]);
+    // }
 
     {
         p.pos = player_spawnpoint;
