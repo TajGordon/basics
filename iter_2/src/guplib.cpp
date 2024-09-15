@@ -266,9 +266,35 @@ void RenderShip(Camera2D camera, Player* p)
 
     // render ship itself
     // ship position is in the middle of a block
-    Color shipColor = (shipOpen) ? GREEN : RED;
     // DrawRectangleV(shipPosition - 32, {64, 64}, shipColor);
-    DrawTexture(shipTexture, shipPosition.x - 64, shipPosition.y - 40, WHITE);
+
+    if (TileOnScreen(shipPosition/TMSIZE - (Vector2){3, 0}, camera) || TileOnScreen(shipPosition/TMSIZE + (Vector2){3, 0}, camera)
+     || TileOnScreen(shipPosition/TMSIZE - (Vector2){0, 3}, camera) || TileOnScreen(shipPosition/TMSIZE + (Vector2){0, 3}, camera))
+    {
+        DrawTexture(shipTexture, shipPosition.x - 64, shipPosition.y - 40, WHITE);
+
+        if (shipBatterySlotHasBattery[0])
+        { // Slot one
+            Battery battery = shipBatterySlotBatteryType[0];
+            DrawTexture(batteryTexture, shipPosition.x - TMSIZE, shipPosition.y - 1.5 * TMSIZE, batteryColor[battery]);
+        }
+        if (shipBatterySlotHasBattery[1])
+        { // Slot two
+            Battery battery = shipBatterySlotBatteryType[1];
+            DrawTexture(batteryTexture, shipPosition.x, shipPosition.y - 1.5 * TMSIZE, batteryColor[battery]);
+        }
+        if (shipBatterySlotHasBattery[2])
+        { // Slot three
+            Battery battery = shipBatterySlotBatteryType[2];
+            DrawTexture(batteryTexture, shipPosition.x + TMSIZE, shipPosition.y - 1.5 * TMSIZE, batteryColor[battery]);
+        }
+        if (shipBatterySlotHasBattery[3])
+        { // Slot three
+            Battery battery = shipBatterySlotBatteryType[3];
+            DrawTexture(batteryTexture, shipPosition.x + TMSIZE * 2, shipPosition.y - 1.5 * TMSIZE, batteryColor[battery]);
+        }
+    }
+
 
     #define SHIPINTERACTIONDISTANCE 50
     if (shipOpen && Vector2DistanceSqr(p->pos, shipPosition) < (SHIPINTERACTIONDISTANCE * SHIPINTERACTIONDISTANCE))
