@@ -2853,7 +2853,7 @@ void RenderGameWithLighting(Player* player, Camera2D camera, double time)
 void LoadGame()
 {
     {
-        emscripten_console_log("WOO WE GOT HERE\n");
+        printf("can i see this? \n");
         for (int i = 0; i < BATTERIESNEEDEDFORSHIP; i++) {
             shipBatterySlotHasBattery[i] = false;
             shipBatterySlotBatteryType[i] = bigjump;
