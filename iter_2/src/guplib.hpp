@@ -1,5 +1,5 @@
 #pragma once
-#include "raylib.h"
+#include "/Users/tajgordon/raylib-5.0_webassembly/include/raylib.h"
 
 #define Round(x) ((int)(x))
 #define Sign(x) (((x) < 0) ? -1 : 1)
@@ -18,6 +18,10 @@
 #define DOUBLEJUMPSIDEWAYSBONUSVELMULTIPLIER 1.5
 #define NORMALSPEED 2
 #define BATTERYDROPOFFSET 4
+#define FOV_MAX_RADIUS 7
+#define DEFAULT_FOV_RADIUS 3
+#define FOV_RADIUS_WITH_BATTERY 4
+#define RAY_COUNT 720
 #define QUICKIESPEED 3
 
 #define WORLD_SIZE_X 400
@@ -50,6 +54,7 @@ typedef enum Battery
     heavyfire,
     quickie,
     tanky,
+    visionup,
     // overdrive, // damage up , move speed up, health down, IMPLEMENT LATER
     batterycount
 } Battery;
@@ -104,6 +109,8 @@ typedef struct Player
     int jumpCount;
     int maxJumps;
     bool canDoubleJump;
+
+    float FOV;
 
     double lastShot;
     double shootDelay;

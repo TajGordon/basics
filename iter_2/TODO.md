@@ -1,19 +1,18 @@
 # TODO LIST
 
 [] __This isnt something to do, why the fuck isn't the player in global scope? you pass him around everywhere...__
-### it is in the global scope, just below all the funcitons for some fucking reason
+### it is in the global scope, just below all the functions for some fucking reason
+
+[] __Some indicator for how much health left__
+[] __More textures? Color tint?__
 
 [] __Make putting batteries into the ship nicer of an experience__
 
 [] __FIX THE LAG__
 [] __Fix enemy movement (its broken again)__
-[] __Fix the doors (broken)__
 
 [] __Make enemies not walk off ledges__
 # maybe, could be interesting
-
-[] __Hide whats behind breakable walls__
-[] __By adding lighting????__
 
 [] __Unfuck the enemies__ ## what does this mean
 [] __Batteries have gravity__
@@ -49,6 +48,10 @@
 
 [x] __Implement special item__
 # must find special item before winning the game
+
+[X] __Fix the doors (broken)__
+[X] __Hide whats behind breakable walls__
+[X] __By adding lighting????__
 
 [X] __Platforms have their own hitbox__
 [X] __Platforms serparate from ground__

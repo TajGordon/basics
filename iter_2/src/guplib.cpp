@@ -1,10 +1,14 @@
-#include "raylib.h"
-#include "raymath.h"
+#include "/Users/tajgordon/raylib-5.0_webassembly/include/raylib.h"
+#include "/Users/tajgordon/raylib-5.0_webassembly/include/raymath.h"
 #include "guplib.hpp"
 #include <cstdio>
 #include <cstring>
-#include <malloc/_malloc.h>
+#include <stdlib.h>
 #include "math.h"
+
+#ifdef PLATFORM_WEB
+#include <emscripten/emscripten.h>
+#endif
 /**************/
 /* MATH STUFF */
 /**************/
@@ -113,6 +117,7 @@ bool batteryInUse[batterycount] = {};
 bool batteryInDoor[batterycount] = {};
 bool batteryCanBePickedUp[batterycount] = {};
 int maxscore = 0;
+int maxbatteriesfound = 0;
 int timeswon = 0;
 
 Gamestate gamestate = gameloadingscreen;
@@ -237,6 +242,9 @@ bool showingShipPlaceBatteryMessage = false;
 bool showingBatterySlotRemovalMessage = false;
 int shipSlot = 0;
 
+bool foundBattery[batterycount] = {};
+int batteriesFound = 0;
+
 Color batteryColor[batterycount] =
 {
     YELLOW,// bigjump,
@@ -245,6 +253,7 @@ Color batteryColor[batterycount] =
     RED,// heavyfire,
     GREEN,// quickie,
     BROWN,// tanky,
+    MAGENTA,
 };
 
 void PlaceBatteryIntoShipKeyhole(Player* p, Battery batterytype, int idx)
@@ -295,6 +304,12 @@ void PlaceBatteryIntoShipKeyhole(Player* p, Battery batterytype, int idx)
         {
             batteryPositions[tanky] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->maxHealth = NORMALMAXHEALTH;
+            break;
+        }
+        case visionup:
+        {
+            batteryPositions[visionup] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->FOV = DEFAULT_FOV_RADIUS;
             break;
         }
     }
@@ -500,6 +515,13 @@ void RenderShip(Camera2D camera, Player* p)
                     didSomething = true;
                     shipSlot = 0;
                 }
+                else if (IsKeyPressed(KEY_SEVEN) && batteryInUse[visionup])
+                {
+                    PlaceBatteryIntoShipKeyhole(p, visionup, shipSlot);
+                    showingShipPlaceBatteryMessage = false;
+                    didSomething = true;
+                    shipSlot = 0;
+                }
             }
         }
         else if (showingBatterySlotRemovalMessage)
@@ -599,11 +621,19 @@ void DropBattery(Player* p, Battery battery)
             p->maxHealth = NORMALMAXHEALTH;
             break;
         }
+        case visionup:
+        {
+            batteryInUse[visionup] = false;
+            batteryPositions[visionup] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->FOV = DEFAULT_FOV_RADIUS;
+            break;
+        }
     }
 }
 
 void PickupBattery(Player* p, Battery battery)
 {
+    if (!foundBattery[battery]) { foundBattery[battery] = true; batteriesFound++; }
     switch (battery)
     {
         case bigjump:
@@ -668,6 +698,12 @@ void PickupBattery(Player* p, Battery battery)
             p->health = p->maxHealth;
             break;
         }
+        case visionup:
+        {
+            p->FOV = FOV_RADIUS_WITH_BATTERY;
+            batteryInUse[visionup] = true;
+            break;
+        }
     }
 }
 
@@ -718,6 +754,11 @@ void DrawBatteries(Player* p, Camera2D camera, double time)
                     case tanky:
                     {
                         batteryname = "tanky";
+                        break;
+                    }
+                    case visionup:
+                    {
+                        batteryname = "visionup";
                         break;
                     }
                 }
@@ -863,6 +904,14 @@ void PlaceBatteryIntoKeyhole(Player* p, Battery battery, int dooridx)
             batteryInUse[tanky] = false;
             batteryInDoor[tanky] = true;
             batteryPositions[tanky] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
+            p->maxHealth = NORMALMAXHEALTH;
+            break;
+        }
+        case visionup:
+        {
+            batteryInUse[visionup] = false;
+            batteryInDoor[visionup] = true;
+            batteryPositions[visionup] = (Vector2){p->pos.x, p->pos.y - BATTERYDROPOFFSET};
             p->maxHealth = NORMALMAXHEALTH;
             break;
         }
@@ -1333,7 +1382,7 @@ void LoadTileTextures()
     tileTex[spike] = LoadTexture("assets/spike.png");
     tileTex[cloud] = LoadTexture("assets/cloud.png");
     tileTex[platform] = LoadTexture("assets/platform.png");
-    tileTex[empty] = tileTex[stone];
+    tileTex[empty] = LoadTexture("assets/empty.png");
     tileTex[sky] = LoadTexture("assets/background.png");
 }
 
@@ -1395,7 +1444,8 @@ void LoadTilemap(const char* path)
                 {
                     rangedEnemyAlive[rangedEnemyCount] = true;
                     rangedEnemyShootingCooldowns[rangedEnemyCount] = 0;
-                    rangedEnemyPositions[rangedEnemyCount++] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    rangedEnemyPositions[rangedEnemyCount] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    rangedEnemyCount++;
                     break;
                 }
                 case 'P':
@@ -1480,6 +1530,11 @@ void LoadTilemap(const char* path)
                 case '5': // tanky
                 {
                     batteryPositions[5] = {(float)x * TMSIZE, (float)y * TMSIZE};
+                    break;
+                }
+                case '6':
+                {
+                    batteryPositions[6] = {(float)x * TMSIZE, (float)y * TMSIZE};
                     break;
                 }
             }
@@ -1716,6 +1771,14 @@ int ReadTopScoreFromFile()
     fscanf(fp, "%d", &timeswon);
     fclose(fp);
 
+    fp = fopen("batteriesfound.txt", "r+");
+        if (fp == NULL)
+        {
+            return 1;
+        }
+        fscanf(fp, "%d", &maxbatteriesfound);
+        fclose(fp);
+
     return 0;
 }
 
@@ -1736,6 +1799,14 @@ int WriteTopScoreToFile()
     }
     fprintf(fp, "%d", timeswon);
     fclose(fp);
+
+    fp = fopen("batteriesfound.txt", "w+");
+    if (fp == NULL)
+    {
+        return 1;
+    }
+    fprintf(fp, "%d", maxbatteriesfound);
+    fclose(fp);
     return 0;
 }
 
@@ -1751,8 +1822,8 @@ void PlayerDie(Player* p)
     {
         newtopscoreflag = 1;
         maxscore = p->score;
-        printf("here\n");
     }
+    if (batteriesFound > maxbatteriesfound) maxbatteriesfound = batteriesFound;
 }
 
 void DrawPlayer(Player p)
@@ -2116,10 +2187,7 @@ int solidCount = 0;
 /*****************************************************************************************************************************/
 /* Basic lighting code (change later maybe to add fog, and have bullets clear parts of the fog like in 20 minutes till dawn) */
 /*****************************************************************************************************************************/
-#define FOV_RADIUS 20 // Adjust based on your desired visibility range
-#define RAY_COUNT 720 // Number of rays to cast (more rays = smoother but slower)
-
-enum VisibilityType {
+ enum VisibilityType {
     NOT_VISIBLE,
     VISIBLE,
     BEHIND_WALL
@@ -2150,7 +2218,7 @@ void CalculatePlayerFOV(Player* player)
         bool hitWall = false;
         Tile wallType = empty;
 
-        for (float j = 0; j < FOV_RADIUS; j += 0.5f)
+        for (float j = 0; j < FOV_MAX_RADIUS; j += 0.5f)
         {
             int gridX = (int)x;
             int gridY = (int)y;
@@ -2161,13 +2229,16 @@ void CalculatePlayerFOV(Player* player)
                 {
                     if (tilemap[gridX][gridY] == empty || tilemap[gridX][gridY] == sky || tilemap[gridX][gridY] == platform || tilemap[gridX][gridY] == spike)
                     {
-                        visibilityGrid[gridX][gridY] = VISIBLE;
+                        if (j < p.FOV)
+                        {
+                            visibilityGrid[gridX][gridY] = VISIBLE;
+                        }
                     }
                     else
                     {
                         hitWall = true;
                         wallType = tilemap[gridX][gridY];
-                        visibilityGrid[gridX][gridY] = VISIBLE;  // The wall itself is visible
+                        if (j < p.FOV) visibilityGrid[gridX][gridY] = VISIBLE;  // The wall itself is visible
                         wallTypeGrid[gridX][gridY] = wallType;
                     }
                 }
@@ -2217,6 +2288,29 @@ void RenderEnemiesWithLighting(Camera2D camera)
                             enemyPositions[i].y - enemyOffsets[enemyTypes[i]].y,
                             tint);
             }
+        }
+    }
+    for (int i = 0; i < rangedEnemyCount; i++)
+    {
+        if (rangedEnemyAlive[i] && TileOnScreen(rangedEnemyPositions[i] / TMSIZE, camera))
+        {
+            int gridX = rangedEnemyPositions[i].x / TMSIZE;
+            int gridY = rangedEnemyPositions[i].y / TMSIZE;
+            Color tint = WHITE;
+
+            if (visibilityGrid[gridX][gridY] == NOT_VISIBLE)
+            {
+                tint = (Color){(unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), 255};
+            }
+            else if (visibilityGrid[gridX][gridY] == BEHIND_WALL)
+            {
+                continue; // Don't render enemies behind walls
+            }
+
+            DrawTexture(rangedEnemyTexture,
+                        rangedEnemyPositions[i].x,
+                        rangedEnemyPositions[i].y,
+                        tint);
         }
     }
 }
@@ -2272,6 +2366,7 @@ void RenderDoorsWithLighting(Camera2D camera, Player* p)
                             if (batteryInUse[heavyfire]) text = TextFormat("%s'4' heavyfire ", text);
                             if (batteryInUse[quickie]) text = TextFormat("%s'5' quickie ", text);
                             if (batteryInUse[tanky]) text = TextFormat("%s'6' tanky ", text);
+                            if (batteryInUse[visionup]) text = TextFormat("%s'7' visionup ", text);
                             int atleastone = (batteryInUse[bigjump] || batteryInUse[doublejump] || batteryInUse[rapidfire] || batteryInUse[heavyfire] || batteryInUse[quickie] || batteryInUse[tanky]);
                             if (!atleastone) text = "You need a battery to do this!";
                             int offset = MeasureText(text, INSERTBATTERYFONTSIZE)/2;
@@ -2306,6 +2401,11 @@ void RenderDoorsWithLighting(Camera2D camera, Player* p)
                                 }
                                 else if (IsKeyPressed(KEY_SIX) && batteryInUse[tanky]) {
                                     PlaceBatteryIntoKeyhole(p, tanky, i);
+                                    showingMessage = false;
+                                    didSomething = true;
+                                }
+                                else if (IsKeyPressed(KEY_SEVEN) && batteryInUse[visionup]) {
+                                    PlaceBatteryIntoKeyhole(p, visionup, i);
                                     showingMessage = false;
                                     didSomething = true;
                                 }
@@ -2359,8 +2459,7 @@ void RenderBatteriesWithLighting(Player* p, Camera2D camera, double time)
             if (visibilityGrid[gridX][gridY] != NOT_VISIBLE && TileOnScreen(batteryPositions[i] / TMSIZE, camera))
             {
                 Color tint = (visibilityGrid[gridX][gridY] == BEHIND_WALL) ?
-                    // (Color){(unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), 255} : WHITE;
-                    BLANK : WHITE;
+                    (Color){(unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), 255} : WHITE;
                 DrawTextureV(batteryTexture, batteryPositions[i] - (Vector2){5, 3}, ColorAlpha(batteryColor[i], tint.a / 255.0f));
             }
 
@@ -2390,6 +2489,9 @@ void RenderBatteriesWithLighting(Player* p, Camera2D camera, double time)
                     case tanky:
                         batteryname = "tanky";
                         break;
+                    case visionup:
+                        batteryname = "visionup";
+                        break;
                 }
                 const char* string = TextFormat("Press 'E' to pickup %s battery\0", batteryname);
 
@@ -2414,15 +2516,26 @@ void RenderShipWithLighting(Camera2D camera, Player* p)
     int gridX = shipPosition.x / TMSIZE;
     int gridY = shipPosition.y / TMSIZE;
 
-    if (visibilityGrid[gridX][gridY] != NOT_VISIBLE &&
-        (TileOnScreen(shipPosition/TMSIZE - (Vector2){3, 0}, camera) ||
-         TileOnScreen(shipPosition/TMSIZE + (Vector2){3, 0}, camera) ||
-         TileOnScreen(shipPosition/TMSIZE - (Vector2){0, 3}, camera) ||
-         TileOnScreen(shipPosition/TMSIZE + (Vector2){0, 3}, camera)))
+    if (visibilityGrid[gridX][gridY] != NOT_VISIBLE)
     {
         Color tint = (visibilityGrid[gridX][gridY] == BEHIND_WALL) ?
             BLANK : WHITE;
         // (Color){(unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), 255} : WHITE;
+        DrawTexture(shipTexture, shipPosition.x - 64, shipPosition.y - 40, tint);
+
+        // Render battery slots
+        // previous implementation, but use tint
+        for (int i = 0; i < BATTERIESNEEDEDFORSHIP; i++) {
+            if (shipBatterySlotHasBattery[i]) {
+                Battery battery = shipBatterySlotBatteryType[i];
+                Vector2 slotPosition = {shipPosition.x + (i - 1.5f) * TMSIZE, shipPosition.y - 1.5f * TMSIZE};
+                DrawTexture(batteryTexture, slotPosition.x, slotPosition.y, ColorAlpha(batteryColor[battery], tint.a / 255.0f));
+            }
+        }
+    }
+    else if (Vector2DistanceSqr(p->pos, shipPosition) < (256 * 256))
+    {
+        Color tint = (Color){(unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), (unsigned char)(depthfactor * 255), 255};
         DrawTexture(shipTexture, shipPosition.x - 64, shipPosition.y - 40, tint);
 
         // Render battery slots
@@ -2659,9 +2772,9 @@ void DrawTilemapWithLighting(Player* player)
                     case NOT_VISIBLE:
                     default:
                         tileToRender = tilemap[x][y];
-                        tileColor = (Color){(unsigned char)(depthfactor * 100),
-                                            (unsigned char)(depthfactor * 100),
-                                            (unsigned char)(depthfactor * 100), 255};
+                        tileColor = (Color){(unsigned char)(depthfactor * 255),
+                                            (unsigned char)(depthfactor * 255),
+                                            (unsigned char)(depthfactor * 255), 255};
                         break;
                 }
 
@@ -2697,12 +2810,13 @@ void DrawBulletsWithLighting()
     {
         int gridX = bulletsPs[i].x / TMSIZE;
         int gridY = bulletsPs[i].y / TMSIZE;
-        if (gridX >= 0 && gridX < WORLD_SIZE_X && gridY >= 0 && gridY < WORLD_SIZE_Y && visibilityGrid[gridX][gridY])
+        if (gridX >= 0 && gridX < WORLD_SIZE_X && gridY >= 0 && gridY < WORLD_SIZE_Y)
         {
+            Color tint = (visibilityGrid[gridX][gridY] == NOT_VISIBLE) ? (Color){(unsigned char)(depthfactor * 100), (unsigned char)(depthfactor * 100), (unsigned char)(depthfactor * 100), 255} : WHITE;
             DrawTexture(bulletTexture[bulletsTs[i]],
                         bulletsPs[i].x - bulletRadius[bulletsTs[i]],
                         bulletsPs[i].y - bulletRadius[bulletsTs[i]],
-                        WHITE);
+                        tint);
         }
     }
 }
@@ -2739,7 +2853,7 @@ void RenderGameWithLighting(Player* player, Camera2D camera, double time)
 void LoadGame()
 {
     {
-
+        emscripten_console_log("WOO WE GOT HERE\n");
         for (int i = 0; i < BATTERIESNEEDEDFORSHIP; i++) {
             shipBatterySlotHasBattery[i] = false;
             shipBatterySlotBatteryType[i] = bigjump;
@@ -2768,7 +2882,9 @@ void LoadGame()
             batteryInDoor[i] = false;
             batteryCanBePickedUp[i] = false;
             batteryPositions[i] = {};
+            foundBattery[i] = false;
         }
+        batteriesFound = 0;
         for (int i = 0; i < MAX_DISPLAY_MESSAGES; i++)
         {
             displayMessagesTimers[i] = 0;
@@ -2811,7 +2927,13 @@ void LoadGame()
         specialItemPos = {0};
         foundSpecialItem = false;
         rangedEnemyCount = 0;
-
+        for (int i = 0; i < MAX_RANGED_ENEMIES; i++) {
+            rangedEnemyPositions[i] = {};
+            rangedEnemyAlive[i] = false;
+        }
+        shipOpen = false;
+        showingBatterySlotRemovalMessage = false;
+        enemyCount = 0;
     }
 
     LoadTilemap("map.txt");
@@ -2831,6 +2953,7 @@ void LoadGame()
 
     {
         p.pos = player_spawnpoint;
+        p.FOV = DEFAULT_FOV_RADIUS;
         p.size = {9, 14};
         p.lastDir = {1, 0};
         p.col = (Color){0xff, 0xff, 0x00, 50};
