@@ -2937,7 +2937,7 @@ void LoadGame()
     }
 
     printf("do we make it before the loadtilemap and doors?? \n");
-    LoadTilemap("map.txt");
+    LoadTilemap("assets/map.txt");
     LoadDoors();
     printf("How about after?? \n");
 

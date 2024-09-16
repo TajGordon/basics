@@ -26,15 +26,15 @@ int main(void)
     LoadBatteryTexture();
     LoadEnemyTextures();
 
-    #ifdef PLATFORM_WEB
-    emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
-    #else
+    // #ifdef PLATFORM_WEB
+    // emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+    // #else
     SetTargetFPS(120);
     while (!exitWindow)
     {
         UpdateDrawFrame();
     }
-    #endif
+    // #endif
 
     if (WriteTopScoreToFile())
     {
