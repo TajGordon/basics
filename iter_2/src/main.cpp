@@ -101,6 +101,7 @@ void UpdateDrawFrame(void)
 
                 RenderGameWithLighting(&p, camera, time);
 
+
                 // Debug info
                 // DrawText(TextFormat("Players x velocity: %f", p.vel.x), 20, 20, 40, RED);
                 // DrawText(TextFormat("Players pos: %f %f ", p.pos.x, p.pos.y), 20, 100, 40, RED);
@@ -110,6 +111,7 @@ void UpdateDrawFrame(void)
                 // DrawText(TextFormat("Player.score: %d", p.score), 20, 260, 40, RED);
                 // DrawText(TextFormat("Frame MS: %f", dt * 1000), 20, 220, 50, GREEN);
                 // DrawText(TextFormat("FPS: %f", 1/dt), 20, 300, 50, GREEN);
+                DrawBatteryStatus();
             }
             EndDrawing();
             exitWindow = WindowShouldClose();

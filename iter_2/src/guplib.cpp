@@ -245,6 +245,32 @@ int shipSlot = 0;
 bool foundBattery[batterycount] = {};
 int batteriesFound = 0;
 
+void DrawBatteryStatus()
+{
+    const char* batteryNames[batterycount] = {
+        "Big Jump",
+        "Double Jump",
+        "Rapid Fire",
+        "Heavy Fire",
+        "Quickie",
+        "Tanky",
+        "Vision Up"
+    };
+
+    if (IsKeyDown(KEY_TAB))
+    {
+
+        for (int i = 0; i < batterycount; i++)
+        {
+            Color statusColor = foundBattery[i] ? GREEN : RED;
+            const char* statusText = foundBattery[i] ? "Found" : "Missing";
+            int startY = GetScreenHeight() - 50;
+            DrawText(TextFormat("%s:", batteryNames[i]), 10 + i * 180, startY, 20, statusColor);
+            DrawText(TextFormat("%s", statusText), 10 + i * 180, startY + 25, 20, statusColor);
+        }
+    }
+}
+
 Color batteryColor[batterycount] =
 {
     YELLOW,// bigjump,
