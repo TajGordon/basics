@@ -5,6 +5,7 @@
 
 [] __Some indicator for how much health left__
 [] __More textures? Color tint?__
+[] __Fix enemy spawns__
 
 [] __Make putting batteries into the ship nicer of an experience__
 
