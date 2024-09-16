@@ -2936,8 +2936,10 @@ void LoadGame()
         enemyCount = 0;
     }
 
+    printf("do we make it before the loadtilemap and doors?? \n");
     LoadTilemap("map.txt");
     LoadDoors();
+    printf("How about after?? \n");
 
     SetEnemyStatsProperBecauseInitValueNotWorking();
 
@@ -2987,7 +2989,7 @@ void LoadGame()
         specialCamera.offset = {windowWidth / 2.f, windowHeight / 2.f};
         camera.target = {};
     }
-
+    printf("if we make it here its not this functions fault. \n");
     // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);
     // solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
 
