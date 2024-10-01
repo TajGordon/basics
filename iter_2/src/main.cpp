@@ -1,7 +1,7 @@
 #include "guplib.hpp"
 #include "/Users/tajgordon/raylib-5.0_webassembly/include/raylib.h"
 #include "guplib.cpp"
-#include <ctime>
+#include <time.h>
 
 #ifdef PLATFORM_WEB
 #include <emscripten/emscripten.h>

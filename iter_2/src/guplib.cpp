@@ -1148,7 +1148,7 @@ int enemyScore[enemytypecount] =
 {
     100,
     300,
-    1000,
+    100,
 };
 
 Vector2 enemyOffsets[enemytypecount] =
