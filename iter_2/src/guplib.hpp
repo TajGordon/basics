@@ -131,7 +131,7 @@ typedef struct Player
 
     int health;
     int maxHealth; // so we can modify it with effects
-    #define NORMALMAXHEALTH 100
+    #define NORMALMAXHEALTH 10000
     // dont need a bool alive; cuz we can just do if health < 1
 
 

@@ -202,7 +202,7 @@ void RenderSpecialItem(Player* p, Camera2D camera)
         DrawTexture(specialItemTex, specialItemPos.x, specialItemPos.y, WHITE);
 
 
-        if (Vector2Distance(p->pos, specialItemPos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
+        if (Vector2DistanceSqr(p->pos, specialItemPos) < (INTERACTION_DISTANCE * INTERACTION_DISTANCE))
         {
             const char* text = "?!?!??!?!?!?!?!?!?!?!??!?!?!?!?!\0";
             #define specialitemtextcolor (Color){255, 203, 0, 0xff}
@@ -1148,7 +1148,7 @@ int enemyScore[enemytypecount] =
 {
     100,
     300,
-    100,
+    50,
 };
 
 Vector2 enemyOffsets[enemytypecount] =
