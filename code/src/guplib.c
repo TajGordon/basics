@@ -2876,15 +2876,6 @@ void RenderGameWithLighting(Player* player, Camera2D camera, double time)
 /****************/
 /* Game loading */
 /****************/
-void PrintOpeningMessage()
-{
-    printf("'033[2j\033[H"); /* Clear terminal and move cursor somewhere */
-    printf("THIS WAS MADE ENTIRELY IN THE C PROGRAMMING LANGUAGE!!!\n");
-    printf("ALL ASSETS AND CODE IS ENTIRELY MADE BY ME\n");
-    printf("ALL LINES 2944 LINES OF C CODE (NOT INCLUDING WHITESPACE,COMMENTS, OR OTHER THINGS\n");
-    printf("(2826 lines of C code, 118 lines of C header file code\n");
-}
-
 void LoadGame()
 {
     {
@@ -3025,8 +3016,13 @@ void LoadGame()
         camera.target = (Vector2){};
     }
     printf("if we make it here its not this functions fault. \n");
+    printf("WOO\n");
 
-    void PrintOpeningMessage();
+    printf("\033[2j"); /* Clear terminal and move cursor somewhere */
+    printf("THIS WAS MADE ENTIRELY IN THE C PROGRAMMING LANGUAGE!!!\n");
+    printf("ALL ASSETS AND CODE IS ENTIRELY MADE BY ME\n");
+    printf("ALL LINES 2944 LINES OF C CODE (NOT INCLUDING WHITESPACE,COMMENTS, OR OTHER THINGS\n");
+    printf("(2826 lines of C code, 118 lines of C header file code\n");
     // solids[solidCount++] = MakeSolid(640, 720, 1280, 256, GRAY, true);
     // solids[solidCount++] = MakeSolid(640, 0, 1280, 200, GRAY, false);
 
