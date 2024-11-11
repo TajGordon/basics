@@ -1,12 +1,10 @@
 #include "guplib.hpp"
 #include "/Users/tajgordon/raylib-5.0_webassembly/include/raylib.h"
 #include "guplib.cpp"
-#include <time.h>
 
 #ifdef PLATFORM_WEB
 #include <emscripten/emscripten.h>
 #endif
-
 
 void UpdateDrawFrame(void);
 
@@ -26,12 +24,32 @@ int main(void)
     LoadBatteryTexture();
     LoadEnemyTextures();
 
-    // #ifdef PLATFORM_WEB
-    // emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
-    // #else
+    /* Music */
+    InitAudioDevice();
+    Music MusicMP3 = LoadMusicStream("assets/Lofi-Try_2.mp3");
+    PlayMusicStream(MusicMP3);
+    bool MusicPaused = false;
+    float timePlayed = 0.0f; // Normalised
+
+    #ifdef PLATFORM_WEB
+    emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+    #else
     SetTargetFPS(120);
     while (!exitWindow)
     {
+        /* Music stuff */
+        UpdateMusicStream(MusicMP3);
+        if (IsKeyPressed(KEY_P))
+        {
+            MusicPaused = !MusicPaused;
+            if (MusicPaused) PauseMusicStream(MusicMP3);
+            else ResumeMusicStream(MusicMP3);
+        }
+
+        timePlayed = GetMusicTimePlayed(MusicMP3) / GetMusicTimeLength(MusicMP3);
+        if (timePlayed > 1.0f) timePlayed = 1.0f;
+
+        /* Regular render stuff that I can't be fucked to change to fit the music */
         UpdateDrawFrame();
     }
     // #endif
@@ -41,8 +59,13 @@ int main(void)
         printf("\033[1;31mError: File pointer is NULL.\033[0m\n");
         return 1;
     }
+
+    /* Music */
+    UnloadMusicStream(MusicMP3);
+    CloseAudioDevice();
     CloseWindow();
     return 0;
+    #endif
 }
 
 void UpdateDrawFrame(void)
